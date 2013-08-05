@@ -2,6 +2,8 @@ package gofer
 
 import (
   "errors"
+  "fmt"
+  "os"
   "strings"
 )
 
@@ -63,7 +65,8 @@ func Preform(arguments ...string) {
   split := strings.Split(definition, DEFINITION_SPLITTER)
 
   if 2 != len(split) {
-    panic(ErrBadDef)
+    fmt.Fprintf(os.Stderr, "%s\n", ErrBadDef)
+    os.Exit(0)
   }
 
   var namespace map[string]Action
@@ -71,16 +74,17 @@ func Preform(arguments ...string) {
   if n, ok := gofer[split[0]]; ok {
     namespace = n
   } else {
-    panic(ErrNoNamesapce)
+    fmt.Fprintf(os.Stderr, "%s\n", ErrNoNamesapce)
+    os.Exit(0)
   }
 
   var action Action
 
-  // Gofer error definitions.
   if a, ok := namespace[split[1]]; ok {
     action = a
   } else {
-    panic(ErrNoTask)
+    fmt.Fprintf(os.Stderr, "%s\n", ErrNoTask)
+    os.Exit(0)
   }
 
   err := action()

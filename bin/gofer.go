@@ -2,58 +2,46 @@ package main
 
 import (
   "fmt"
-  _ "github.com/chuckpreslar/gofer"
-
   "go/ast"
   "go/parser"
   "go/token"
-
+  "io"
   "os"
-
+  "os/exec"
+  "path"
   "path/filepath"
-
   "strings"
+  "text/template"
+  "time"
 )
 
-type Import string
-
-type Name struct {
-  original string // Original name for declaration.
-  unique   string // Unique name for declaration.
+type Import struct {
+  Path string
 }
 
-type Declaration struct {
-  constant bool
-  assigned bool
-  value    string
-  typ      string
-  name     Name
+type TemplateData struct {
+  Imports []Import
 }
 
-type Function struct {
-  reciever string
-  block    string
-  name     Name
-}
+// Gofer binary constants.
+const (
+  SOURCE_PREFIX        = "/src/"
+  PACKAGE_NAME         = "tasks"
+  EXPECTED_IMPORT      = "gofer"
+  TEMPLATE_DESTINATION = "gofer_task_definitions_%v.go"
+)
 
 // Gofer binary variables.
 var (
-  Debug  = true
-  GoPath = os.Getenv("GOPATH") // The users GOPATH environment variable.
-
-  TaskFiles     = make([]string, 0)      // Files within task directories.
-  TaskImports   = make([]Import, 0)      // Unique imports used within the task files.
-  TaskVariables = make([]Declaration, 0) // Variables from task files.
-  TaskConstants = make([]Declaration, 0) // Constants from task files.
-  TaskFunctions = make([]Function, 0)    // Functions from task files.
-
-  TaskMap = make(map[string]map[string]string) // Map of original names to unqiue names.
+  GoPath          = os.Getenv("GOPATH") // The users GOPATH environment variable.
+  TaskDirectories = make([]string, 0)   // Task directories.
+  Template        = TemplateData{}
 )
 
 func WalkGoPath() error {
   err := filepath.Walk(GoPath, func(path string, info os.FileInfo, err error) error {
-    if info.IsDir() && strings.HasSuffix(path, "tasks") {
-      TaskFiles = append(TaskFiles, path)
+    if info.IsDir() && strings.HasSuffix(path, PACKAGE_NAME) {
+      TaskDirectories = append(TaskDirectories, path)
     }
 
     return err
@@ -62,8 +50,8 @@ func WalkGoPath() error {
   return err
 }
 
-func ParseTaskFiles() error {
-  for _, dir := range TaskFiles {
+func ParseTaskDirectories() error {
+  for _, dir := range TaskDirectories {
     fset := token.NewFileSet()
     packages, err := parser.ParseDir(fset, dir, nil, parser.AllErrors)
 
@@ -71,7 +59,7 @@ func ParseTaskFiles() error {
       return err
     }
 
-    if err = ParsePackages(packages); nil != err {
+    if err = ParsePackages(packages, dir); nil != err {
       return err
     }
   }
@@ -79,86 +67,70 @@ func ParseTaskFiles() error {
   return nil
 }
 
-func ParsePackages(packages map[string]*ast.Package) error {
+func ParsePackages(packages map[string]*ast.Package, dir string) (err error) {
   for _, pkg := range packages {
-    for location, file := range pkg.Files {
-      if err := ParseFile(file, location); nil != err {
-        return err
-      }
-    }
-  }
+    file := ast.MergePackageFiles(pkg, ast.FilterImportDuplicates)
 
-  return nil
-}
-
-func ParseFile(file *ast.File, location string) error {
-  for _, decl := range file.Decls {
-    if err := ParseDeclaration(decl); nil != err {
-      return err
-    }
-  }
-
-  return nil
-}
-
-func ParseDeclaration(decl ast.Decl) (err error) {
-  switch decl.(type) {
-  case *ast.GenDecl:
-    err = ParseGeneralDeclaration(decl.(*ast.GenDecl))
-  case *ast.FuncDecl:
-    err = ParseFunctionDeclaration(decl.(*ast.FuncDecl))
-  default:
-    panic(fmt.Sprintf("%T", decl))
-  }
-
-  return
-}
-
-func ParseGeneralDeclaration(decl *ast.GenDecl) (err error) {
-  for _, spec := range decl.Specs {
-    switch spec.(type) {
-    case *ast.ImportSpec:
-      err = ParseImport(spec.(*ast.ImportSpec))
-    case *ast.ValueSpec:
-      err = ParseValue(spec.(*ast.ValueSpec))
+    if IsGoferTaskFile(file) {
+      AddImport(dir)
     }
   }
   return
 }
 
-func ParseFunctionDeclaration(decl *ast.FuncDecl) (err error) {
-  return
-}
-
-func ParseImport(imprt *ast.ImportSpec) (err error) {
-  if IsNewImport(imprt) {
-    AppendImport(imprt)
-  }
-
-  return
-}
-
-func ParseValue(value *ast.ValueSpec) (err error) {
-  fmt.Println(value)
-  return
-}
-
-func IsNewImport(imprt *ast.ImportSpec) bool {
-  for _, i := range TaskImports {
-    if i == Import(imprt.Path.Value) {
-      return false
+func IsGoferTaskFile(file *ast.File) bool {
+  for _, imprt := range file.Imports {
+    if PACKAGE_NAME == file.Name.String() && strings.ContainsAny(imprt.Path.Value, EXPECTED_IMPORT) {
+      return true
     }
   }
 
-  return true
+  return false
 }
 
-func AppendImport(imprt *ast.ImportSpec) {
-  if Debug {
-    fmt.Printf("Appending import %s\n", imprt.Path.Value)
+func AddImport(dir string) {
+  imprt := strings.TrimLeft(strings.Replace(dir, GoPath, "", 1), SOURCE_PREFIX)
+  Template.Imports = append(Template.Imports, Import{imprt})
+}
+
+func CompileTemplate() (tmpl *template.Template) {
+  tmpl = template.Must(template.New("gofer").Parse(`
+    package main
+
+    import (
+      "os"
+      "github.com/chuckpreslar/gofer"
+
+      // Imported task files.
+    {{range .Imports}}
+      _ "{{.Path}}"
+    {{end}}
+    )
+
+    func main() {
+      gofer.Preform(os.Args[1:]...)
+    }
+  `))
+
+  return
+}
+
+func WriteTemplate(destination string, tmpl *template.Template) (err error) {
+  file, err := os.Create(destination)
+
+  if nil != err {
+    return
   }
 
-  TaskImports = append(TaskImports, Import(imprt.Path.Value))
+  defer file.Close()
+
+  err = tmpl.Execute(file, Template)
+
+  return
+}
+
+func RemoveTemplate(location string) {
+  os.Remove(location)
 }
 
 func main() {
@@ -168,7 +140,49 @@ func main() {
     panic(err)
   }
 
-  err = ParseTaskFiles()
+  err = ParseTaskDirectories()
+
+  if nil != err {
+    panic(err)
+  }
+
+  tmpl := CompileTemplate()
+  dir := path.Join(os.TempDir(), fmt.Sprintf(TEMPLATE_DESTINATION, time.Now().Unix()))
+
+  err = WriteTemplate(dir, tmpl)
+
+  if nil != err {
+    panic(err)
+  }
+
+  defer RemoveTemplate(dir)
+
+  arguments := append([]string{"run", dir}, os.Args[1:]...)
+
+  command := exec.Command("go", arguments...)
+
+  stdout, err := command.StdoutPipe()
+
+  if nil != err {
+    panic(err)
+  }
+
+  stderr, err := command.StderrPipe()
+
+  if nil != err {
+    panic(err)
+  }
+
+  err = command.Start()
+
+  if nil != err {
+    panic(err)
+  }
+
+  go io.Copy(os.Stdout, stdout)
+  go io.Copy(os.Stderr, stderr)
+
+  err = command.Wait()
 
   if nil != err {
     panic(err)
