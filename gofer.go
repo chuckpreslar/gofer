@@ -8,10 +8,11 @@ import (
 // DEFINITION_SPLITTER splits an string into it's namespace and label.
 const DEFINITION_SPLITTER = ":"
 
+// Gofer error definitions.
 var (
-  EBadDef      = errors.New("Bad task definition, expected <namespace>:<task>") // The task definition was malformed.
-  ENoNamesapce = errors.New("Namespace is undefnied")                           // The namespace was undefined.
-  ENoTask      = errors.New("Task is undefined for namespace")                  // The task was undefined.
+  ErrBadDef      = errors.New("Bad task definition, expected <namespace>:<task>") // The task definition was malformed.
+  ErrNoNamesapce = errors.New("Namespace is undefnied")                           // The namespace was undefined.
+  ErrNoTask      = errors.New("Task is undefined for namespace")                  // The task was undefined.
 )
 
 // Action is a function that returns an error.
@@ -62,7 +63,7 @@ func Preform(arguments ...string) {
   split := strings.Split(definition, DEFINITION_SPLITTER)
 
   if 2 != len(split) {
-    panic(EBadDef)
+    panic(ErrBadDef)
   }
 
   var namespace map[string]Action
@@ -70,15 +71,16 @@ func Preform(arguments ...string) {
   if n, ok := gofer[split[0]]; ok {
     namespace = n
   } else {
-    panic(ENoNamesapce)
+    panic(ErrNoNamesapce)
   }
 
   var action Action
 
+  // Gofer error definitions.
   if a, ok := namespace[split[1]]; ok {
     action = a
   } else {
-    panic(ENoTask)
+    panic(ErrNoTask)
   }
 
   err := action()
