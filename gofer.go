@@ -46,11 +46,12 @@ type Delegator map[string]map[string]Task
 
 // Task defines an action to preform based on a namespace and label.
 type Task struct {
-  Namespace   string // The namespace the task lives under.
-  Label       string // The label the task is lives under.
-  Description string // The description of the task's action.
-  Action      Action // The action preformed by executing the task.
-  pkg         string
+  Namespace    string   // The namespace the task lives under.
+  Label        string   // The label the task is lives under.
+  Description  string   // The description of the task's action.
+  Dependencies []string // Slice of tasks that will be preformed prior to this tasks execution.
+  Action       Action   // The action preformed by executing the task.
+  pkg          string
 }
 
 var gofer = make(Delegator)
@@ -113,16 +114,21 @@ func Preform(arguments ...string) error {
     return ErrNoNamesapce
   }
 
-  var action Action
+  task, ok := namespace[split[1]]
 
   // Ensure the task lives in the namespace.
-  if task, ok := namespace[split[1]]; ok {
-    action = task.Action
-  } else {
+  if !ok {
     return ErrNoNamesapce
   }
 
-  return action(arguments...)
+  // If the task has any dependencies, preform them first.
+  for _, dep := range task.Dependencies {
+    if err := Preform(append([]string{dep}, arguments...)...); nil != err {
+      return err
+    }
+  }
+
+  return task.Action(arguments...)
 }
 
 // ListTasks prints a lists of the registered tasks to the writter.
