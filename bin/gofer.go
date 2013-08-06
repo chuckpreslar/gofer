@@ -87,18 +87,11 @@ var Template = template.Must(template.New("gofer").Parse(`
       Trigger:     "([a-zA-Z0-9]+):([a-zA-Z0-9]+)",
       Description: "Runs a gofer task.",
     }
-
-    VersionCommand = Command{
-      Name:        "version",
-      Trigger:     "version",
-      Description: "Prints the gofer version installed.",
-    }
   )
 
   var Commands = []Command{
     TasksCommand,
     PreformCommand,
-    VersionCommand,
   }
 
   func main() {
@@ -120,11 +113,8 @@ var Template = template.Must(template.New("gofer").Parse(`
           err = gofer.ListTasks(os.Stdout, arguments...)
         case "preform":
           err = gofer.Preform(arguments...)
-        case "version":
-          gofer.PrintVersion(os.Stdout)
         default:
           fmt.Fprintf(os.Stderr, "%s\n", ErrUknownCommand)
-          os.Exit(0)
         }
       }
     }
@@ -136,7 +126,8 @@ var Template = template.Must(template.New("gofer").Parse(`
 `))
 
 // WalkGoPath attempts to walk folders located in the local
-// GOPATH, adding any directory
+// GOPATH, adding any directory ending in `/tasks` to the
+// `TaskDirectory` array as a potential gofer task directory.
 func WalkGoPath() error {
   err := filepath.Walk(GoPath, func(path string, info os.FileInfo, err error) error {
     if info.IsDir() && strings.HasSuffix(path, PACKAGE_NAME) {
@@ -149,6 +140,8 @@ func WalkGoPath() error {
   return err
 }
 
+// ParseTaskDirectories load each of the potential directorires in the `TaskDirectory`
+// as an AST to inspect the packages imports.
 func ParseTaskDirectories() error {
   for _, dir := range TaskDirectories {
     fset := token.NewFileSet()
@@ -158,15 +151,15 @@ func ParseTaskDirectories() error {
       return err
     }
 
-    if err = ParsePackages(packages, dir); nil != err {
-      return err
-    }
+    ParsePackages(packages, dir)
   }
 
   return nil
 }
 
-func ParsePackages(packages map[string]*ast.Package, dir string) (err error) {
+// ParsePackage inspects AST packages, checking to see if the potential
+// directory has a package that imports the `gofer` package.
+func ParsePackages(packages map[string]*ast.Package, dir string) {
   for _, pkg := range packages {
     file := ast.MergePackageFiles(pkg, ast.FilterImportDuplicates)
 
@@ -174,9 +167,10 @@ func ParsePackages(packages map[string]*ast.Package, dir string) (err error) {
       AddImport(dir)
     }
   }
-  return
 }
 
+// IsGoferTaskFile checks that the package of an AST file matches
+// the expected `PACKAGE_NAME` and imports the `EXPECTED_IMPORT`.
 func IsGoferTaskFile(file *ast.File) bool {
   for _, imprt := range file.Imports {
     if PACKAGE_NAME == file.Name.String() && strings.ContainsAny(imprt.Path.Value, EXPECTED_IMPORT) {
@@ -187,11 +181,15 @@ func IsGoferTaskFile(file *ast.File) bool {
   return false
 }
 
+// AddImport adds the directory to the `Data`'s Imports field for later use in
+// templating.
 func AddImport(dir string) {
   imprt := strings.TrimLeft(strings.Replace(dir, GoPath, "", 1), SOURCE_PREFIX)
   Data.Imports = append(Data.Imports, Import{imprt})
 }
 
+// WriteRunnable writes the `Template` to the `destination` temporary file, returning an
+// error if it was unsuccessful.
 func WriteRunnable(destination string) (err error) {
   file, err := os.Create(destination)
 
@@ -200,12 +198,12 @@ func WriteRunnable(destination string) (err error) {
   }
 
   defer file.Close()
-
   err = Template.Execute(file, Data)
 
   return
 }
 
+// RemoveRunnable deletes a file at the `location`.
 func RemoveRunnable(location string) {
   os.Remove(location)
 }
@@ -224,7 +222,6 @@ func main() {
   }
 
   dir := path.Join(os.TempDir(), fmt.Sprintf(TEMPLATE_DESTINATION, time.Now().Unix()))
-
   err = WriteRunnable(dir)
 
   if nil != err {
@@ -234,9 +231,7 @@ func main() {
   defer RemoveRunnable(dir)
 
   arguments := append([]string{"run", dir}, os.Args[1:]...)
-
   command := exec.Command("go", arguments...)
-
   stdout, err := command.StdoutPipe()
 
   if nil != err {
