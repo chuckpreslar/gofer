@@ -20,7 +20,7 @@ var (
   ErrNoTask      = errors.New("Task is undefined for namespace")                  // The task was undefined.
 )
 
-var PrintedTask = template.Must(template.New("task").Parse(`
+var TaskTemplate = template.Must(template.New("task").Parse(`
   Namespace:  {{.Namespace}}
   Label:      {{.Label}}
   {{if .Description}}
@@ -126,7 +126,7 @@ func ListAllTasks(writter io.Writer) error {
 func ListTasksFor(writter io.Writer, namespace string) error {
   if n, ok := gofer[namespace]; ok {
     for _, t := range n {
-      err := PrintedTask.Execute(writter, t)
+      err := TaskTemplate.Execute(writter, t)
 
       if nil != err {
         return err

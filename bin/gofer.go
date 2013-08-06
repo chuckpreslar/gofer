@@ -105,7 +105,7 @@ var Template = template.Must(template.New("gofer").Parse(`
     arguments := os.Args[1:]
 
     if 0 == len(arguments) {
-      fmt.Fprintf(os.Stderr, "%s", ErrInvalidArguments)
+      fmt.Fprintf(os.Stderr, "%s\n", ErrInvalidArguments)
       os.Exit(0)
     }
 
@@ -123,14 +123,14 @@ var Template = template.Must(template.New("gofer").Parse(`
         case "version":
           gofer.PrintVersion(os.Stdout)
         default:
-          fmt.Fprintf(os.Stderr, "%s", ErrUknownCommand)
+          fmt.Fprintf(os.Stderr, "%s\n", ErrUknownCommand)
           os.Exit(0)
         }
       }
     }
 
     if nil != err {
-      fmt.Fprintf(os.Stderr, "%s", err)
+      fmt.Fprintf(os.Stderr, "%s\n", err)
     }
   }
 `))
