@@ -49,7 +49,7 @@ func TestPreform(t *testing.T) {
     },
   })
 
-  Preform(fmt.Sprintf(`%s%s%s`, namespace, DEFINITION_SPLITTER, preform))
+  Preform(fmt.Sprintf(`%s%s%s`, namespace, DELIMITER, preform))
 
   if unpreformed {
     t.Error("Preform failed to flip boolean test flag.")

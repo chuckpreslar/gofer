@@ -3,12 +3,15 @@ package gofer
 import (
   "errors"
   "fmt"
-  "os"
+  "io"
   "strings"
+  "text/template"
 )
 
-// DEFINITION_SPLITTER splits an string into it's namespace and label.
-const DEFINITION_SPLITTER = ":"
+const (
+  DELIMITER = ":"     // Delimeter used to split string into namespace and task.
+  VERSION   = "0.0.1" // Gofer version constant.
+)
 
 // Gofer error definitions.
 var (
@@ -17,18 +20,28 @@ var (
   ErrNoTask      = errors.New("Task is undefined for namespace")                  // The task was undefined.
 )
 
+var PrintedTask = template.Must(template.New("task").Parse(`
+  Namespace:  {{.Namespace}}
+  Label:      {{.Label}}
+  {{if .Description}}
+  Description:
+  {{.Description}}
+  {{end}}
+`))
+
 // Action is a function that returns an error.
 type Action func() error
 
 // Delegator is a used to map namespaces to tasks.
 // delegator[<namespace>][<task>] => Action
-type Delegator map[string]map[string]Action
+type Delegator map[string]map[string]Task
 
 // Task defines an action to preform based on a namespace and label.
 type Task struct {
-  Namespace string // The namespace the task lives under.
-  Label     string // The label the task is lives under.
-  Action    Action // The action preformed by executing the task.
+  Namespace   string // The namespace the task lives under.
+  Label       string // The label the task is lives under.
+  Description string // The description of the task's action.
+  Action      Action // The action preformed by executing the task.
 }
 
 var gofer = make(Delegator)
@@ -39,14 +52,13 @@ func Register(task Task) Delegator {
   var (
     namespace = task.Namespace
     label     = task.Label
-    action    = task.Action
   )
 
   if _, ok := gofer[namespace]; !ok {
-    gofer[namespace] = make(map[string]Action)
+    gofer[namespace] = make(map[string]Task)
   }
 
-  gofer[namespace][label] = action
+  gofer[namespace][label] = task
 
   return gofer
 }
@@ -58,38 +70,75 @@ func (self Delegator) Register(task Task) Delegator {
 }
 
 // Preform looks at the first string in the `arguments` given,
-// splitting it based on the constant `DEFINITION_SPLITTER`,
+// splitting it based on the constant `DELIMITER`,
 // calling the action defined.
-func Preform(arguments ...string) {
+func Preform(arguments ...string) error {
   definition := arguments[0]
-  split := strings.Split(definition, DEFINITION_SPLITTER)
+  split := strings.Split(definition, DELIMITER)
 
   if 2 != len(split) {
-    fmt.Fprintf(os.Stderr, "%s\n", ErrBadDef)
-    os.Exit(0)
+    return ErrBadDef
   }
 
-  var namespace map[string]Action
+  var namespace map[string]Task
 
   if n, ok := gofer[split[0]]; ok {
     namespace = n
   } else {
-    fmt.Fprintf(os.Stderr, "%s\n", ErrNoNamesapce)
-    os.Exit(0)
+    return ErrNoNamesapce
   }
 
   var action Action
 
-  if a, ok := namespace[split[1]]; ok {
-    action = a
+  if task, ok := namespace[split[1]]; ok {
+    action = task.Action
   } else {
-    fmt.Fprintf(os.Stderr, "%s\n", ErrNoTask)
-    os.Exit(0)
+    return ErrNoNamesapce
   }
 
-  err := action()
+  return action()
+}
 
-  if nil != err {
-    panic(err)
+func ListTasks(writter io.Writer, arguments ...string) error {
+  if 1 == len(arguments) {
+    return ListAllTasks(writter)
   }
+
+  for _, namespace := range arguments[1:] {
+    if err := ListTasksFor(writter, namespace); nil != err {
+      return err
+    }
+  }
+
+  return nil
+}
+
+func ListAllTasks(writter io.Writer) error {
+  for namespace, _ := range gofer {
+    if err := ListTasksFor(writter, namespace); nil != err {
+      return err
+    }
+  }
+
+  return nil
+}
+
+func ListTasksFor(writter io.Writer, namespace string) error {
+  if n, ok := gofer[namespace]; ok {
+    for _, t := range n {
+      err := PrintedTask.Execute(writter, t)
+
+      if nil != err {
+        return err
+      }
+    }
+  } else {
+    return ErrNoNamesapce
+  }
+
+  return nil
+}
+
+func PrintVersion(writter io.Writer) {
+  fmt.Fprintf(writter, "%s\n", VERSION)
 }
