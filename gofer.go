@@ -335,7 +335,9 @@ func dependenciesForTask(task *Task) (dependencies manual, err error) {
   half := make(manual, 0)
   marked := make(manual, 0)
 
-  visit(task, &half, &marked)
+  err = visit(task, &half, &marked)
+  dependencies = marked
+  return
 }
 
 func visit(task *Task, half, marked *manual) error {
@@ -345,7 +347,7 @@ func visit(task *Task, half, marked *manual) error {
   if nil != dependency {
     return errCyclicDependency
   } else {
-    half = append(half, section)
+    *half = append(*half, task)
     for _, definition := range task.Dependencies {
       dependency = gofer.index(definition)
 
@@ -355,7 +357,7 @@ func visit(task *Task, half, marked *manual) error {
 
       visit(dependency, half, marked)
     }
-    marked = append(marked, section)
+    *marked = append(*marked, task)
   }
-  return
+  return nil
 }
