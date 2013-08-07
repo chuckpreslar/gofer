@@ -37,18 +37,17 @@ var (
 type action func(arguments ...interface{}) error
 
 type Task struct {
-  Section      string       // Section or namespace the task is to live under.
-  Label        string       // Label or name of the task.
-  Description  string       // Description of what the task does.
-  Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
-  Action       action       // Action function to run when task is executed.
-  dependencies manual       // Cached dependency graph.
-  manual       manual       // Subtasks.
-  location     string       // Package location the task was registered from.
+  Section      string   // Section or namespace the task is to live under.
+  Label        string   // Label or name of the task.
+  Description  string   // Description of what the task does.
+  Dependencies []string // Dependencies of the task, or definitions of other tasks to preform
+  Action       action   // Action function to run when task is executed.
+  dependencies manual   // Cached dependency graph.
+  manual       manual   // Subtasks.
+  location     string   // Package location the task was registered from.
 }
 
 type manual []*Task
-type dependencies []string
 
 type imprt struct {
   Path string
@@ -191,8 +190,8 @@ func LoadAndPreform(definition string) error {
 // Preform attempts to preform a Task already loaded.
 func Preform(definition string) (err error) {
   task := gofer.index(definition)
-
-  return task.Action()
+  fmt.Println(dependenciesForTask(task))
+  return
 }
 
 // load attempts to load all potential gofer tasks
@@ -325,4 +324,38 @@ func isGoferTaskFile(file *ast.File) bool {
   }
 
   return false
+}
+
+func dependenciesForTask(task *Task) (dependencies manual, err error) {
+  if 0 < len(task.dependencies) {
+    dependencies = task.dependencies
+    return
+  }
+
+  half := make(manual, 0)
+  marked := make(manual, 0)
+
+  visit(task, &half, &marked)
+}
+
+func visit(task *Task, half, marked *manual) error {
+  section := strings.Join([]string{task.Section, task.Label}, DELIMITER)
+  dependency := marked.index(section)
+
+  if nil != dependency {
+    return errCyclicDependency
+  } else {
+    half = append(half, section)
+    for _, definition := range task.Dependencies {
+      dependency = gofer.index(definition)
+
+      if nil == dependency {
+        return errUnresolvableDependencies
+      }
+
+      visit(dependency, half, marked)
+    }
+    marked = append(marked, section)
+  }
+  return
 }
