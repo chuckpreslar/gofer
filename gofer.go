@@ -37,17 +37,17 @@ var (
 type action func(arguments ...interface{}) error
 
 type Task struct {
-  Section      string   // Section or namespace the task is to live under.
-  Label        string   // Label or name of the task.
-  Description  string   // Description of what the task does.
-  Dependencies []string // Dependencies of the task, or definitions of other tasks to preform
-  Action       action   // Action function to run when task is executed.
-  dependencies manual   // Cached dependency graph.
-  manual       manual   // Subtasks.
-  location     string   // Package location the task was registered from.
+  Section      string       // Section or namespace the task is to live under.
+  Label        string       // Label or name of the task.
+  Description  string       // Description of what the task does.
+  Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
+  Action       action       // Action function to run when task is executed.
+  manual       manual       // Subtasks.
+  location     string       // Package location the task was registered from.
 }
 
 type manual []*Task
+type dependencies []string
 
 type imprt struct {
   Path string
@@ -89,6 +89,19 @@ var loader = template.Must(template.New("loader").Parse(`
     }
   }
 `))
+
+// includes is a helper to reduce duplicated code, checking
+// to see if `dependencies` string slice contains the provided
+// definition.
+func (self dependencies) includes(definition string) bool {
+  for _, dependency := range self {
+    if dependency == definition {
+      return true
+    }
+  }
+
+  return false
+}
 
 // index searches through the manual, returning a task
 // found with the label and in the section (namepsace) defined
@@ -189,8 +202,19 @@ func LoadAndPreform(definition string) error {
 
 // Preform attempts to preform a Task already loaded.
 func Preform(definition string) (err error) {
-  task := gofer.index(definition)
-  fmt.Println(dependenciesForTask(task))
+  definitions, err := calculateDependencies(definition)
+
+  if nil != err {
+    return
+  }
+
+  for _, definition = range definitions {
+    task := gofer.index(definition)
+    if err = task.Action(); nil != err {
+      return
+    }
+  }
+
   return
 }
 
@@ -293,7 +317,7 @@ func parsePackages(packages map[string]*ast.Package, dir string) {
   }
 }
 
-// write attempts to writes the `loader` template to a file at the
+// write attempts to write the `loader` template to a file at the
 // given `destination`.
 func write(destination string) (err error) {
   file, err := os.Create(destination)
@@ -308,7 +332,7 @@ func write(destination string) (err error) {
   return
 }
 
-// remove attempts to remove a file at the given destination.
+// remove attempts to remove a file at the given `destination`.
 func remove(destination string) (err error) {
   err = os.Remove(destination)
   return
@@ -326,38 +350,44 @@ func isGoferTaskFile(file *ast.File) bool {
   return false
 }
 
-func dependenciesForTask(task *Task) (dependencies manual, err error) {
-  if 0 < len(task.dependencies) {
-    dependencies = task.dependencies
-    return
+// calculateDependencies determines the running order of a task
+// and it's dependencies, returning an error if the dependencies
+// are cyclic or if a task couldn't be looked up..
+func calculateDependencies(definition string) (definitions dependencies, err error) {
+  half := make(dependencies, 0)
+  marked := make(dependencies, 0)
+
+  err = visitDefinition(definition, &half, &marked)
+
+  if nil == err {
+    definitions = marked
   }
 
-  half := make(manual, 0)
-  marked := make(manual, 0)
-
-  err = visit(task, &half, &marked)
-  dependencies = marked
   return
 }
 
-func visit(task *Task, half, marked *manual) error {
-  section := strings.Join([]string{task.Section, task.Label}, DELIMITER)
-  dependency := marked.index(section)
-
-  if nil != dependency {
+// visitDefinition helps calculateDependencies to resolve
+// running order of it's dependencies.
+func visitDefinition(definition string, half, marked *dependencies) (err error) {
+  if half.includes(definition) {
     return errCyclicDependency
-  } else {
-    *half = append(*half, task)
-    for _, definition := range task.Dependencies {
-      dependency = gofer.index(definition)
+  } else if !marked.includes(definition) && !half.includes(definition) {
+    *half = append(*half, definition)
+    task := gofer.index(definition)
 
-      if nil == dependency {
-        return errUnresolvableDependencies
-      }
-
-      visit(dependency, half, marked)
+    if nil == task {
+      return errUnresolvableDependencies
     }
-    *marked = append(*marked, task)
+
+    for _, dependency := range task.Dependencies {
+      err = visitDefinition(dependency, half, marked)
+      if nil != err {
+        return
+      }
+    }
+
+    *marked = append(*marked, definition)
   }
-  return nil
+
+  return
 }

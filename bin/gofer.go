@@ -15,6 +15,7 @@ type command struct {
 
 func main() {
   definition := os.Args[1]
+
   if err := gofer.LoadAndPreform(definition); nil != err {
     fmt.Fprintf(os.Stderr, "%s\n", err)
   }
