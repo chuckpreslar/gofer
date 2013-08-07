@@ -116,3 +116,87 @@ func TestPreformWithDependencies(t *testing.T) {
     t.Error(`"unpreformed" flag was no flipped to false, call to Preform failed to run dependency action.`)
   }
 }
+
+func TestDependencyOrdering(t *testing.T) {
+  var executed []int
+
+  check := func(j int) bool {
+    for _, i := range executed {
+      if j == i {
+        return true
+      }
+    }
+    return false
+  }
+
+  d1 := Task{
+    Section: "d",
+    Label:   "one",
+    Action: func(arguments ...interface{}) error {
+      executed = append(executed, 1)
+      return nil
+    },
+  }
+
+  d2 := Task{
+    Section:      "d",
+    Label:        "two",
+    Dependencies: []string{"d:one"},
+    Action: func(arguments ...interface{}) error {
+      if !check(1) {
+        t.Error(`Expected "d:one" to have previously executed.`)
+      }
+      executed = append(executed, 2)
+      return nil
+    },
+  }
+
+  d3 := Task{
+    Section:      "d",
+    Label:        "three",
+    Dependencies: []string{"d:one", "d:four"},
+    Action: func(arguments ...interface{}) error {
+      if !check(1) || !check(4) {
+        t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
+      }
+      executed = append(executed, 3)
+      return nil
+    },
+  }
+
+  d4 := Task{
+    Section:      "d",
+    Label:        "four",
+    Dependencies: []string{"d:one"},
+    Action: func(arguments ...interface{}) error {
+      if !check(1) {
+        t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
+      }
+      executed = append(executed, 4)
+      return nil
+    },
+  }
+
+  d5 := Task{
+    Section:      "d",
+    Label:        "five",
+    Dependencies: []string{"d:two", "d:three"},
+    Action: func(arguments ...interface{}) error {
+      if !check(2) || !check(3) {
+        t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
+      }
+      executed = append(executed, 5)
+      return nil
+    },
+  }
+
+  Register(d1)
+  Register(d2)
+  Register(d3)
+  Register(d4)
+  Register(d5)
+
+  if err := Preform("d:five"); nil != err {
+    t.Errorf(`Unexpected error encounted, %s.`, err)
+  }
+}

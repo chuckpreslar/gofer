@@ -103,6 +103,18 @@ func (self dependencies) includes(definition string) bool {
   return false
 }
 
+func (self *dependencies) add(definition string) {
+  *self = append(*self, definition)
+}
+
+func (self *dependencies) remove(definition string) {
+  for index, dependency := range *self {
+    if dependency == definition {
+      (*self) = append((*self)[:index], (*self)[index+1:]...)
+    }
+  }
+}
+
 // index searches through the manual, returning a task
 // found with the label and in the section (namepsace) defined
 // by the definition.
@@ -372,7 +384,7 @@ func visitDefinition(definition string, half, marked *dependencies) (err error) 
   if half.includes(definition) {
     return errCyclicDependency
   } else if !marked.includes(definition) && !half.includes(definition) {
-    *half = append(*half, definition)
+    half.add(definition)
     task := gofer.index(definition)
 
     if nil == task {
@@ -386,7 +398,8 @@ func visitDefinition(definition string, half, marked *dependencies) (err error) 
       }
     }
 
-    *marked = append(*marked, definition)
+    half.remove(definition)
+    marked.add(definition)
   }
 
   return
