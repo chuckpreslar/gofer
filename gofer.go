@@ -25,26 +25,30 @@ const (
 )
 
 var (
-  errBadLabel            = errors.New("Bad label for task, unexpected section delimiter.")
-  errRegistrationFailure = errors.New("Registration for task failed unexpectedly.")
-  errUnknownTask         = errors.New("Unable to look up task.")
-  errNoAction            = errors.New("No action defined for task.")
-  errUnsetGoPath         = errors.New("Environment variable for GOPATH could not be found.")
+  errBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
+  errRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
+  errUnknownTask              = errors.New("Unable to look up task.")
+  errNoAction                 = errors.New("No action defined for task.")
+  errUnsetGoPath              = errors.New("Environment variable for GOPATH could not be found.")
+  errUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
+  errCyclicDependency         = errors.New("Cyclic dependency detected.")
 )
 
 type action func(arguments ...interface{}) error
 
 type Task struct {
-  Section      string   // Section or namespace the task is to live under.
-  Label        string   // Label or name of the task.
-  Description  string   // Description of what the task does.
-  Dependencies []string // Dependencies of the task, or definitions of other tasks to preform
-  Action       action   // Action function to run when task is executed.
-  manual       manual   // Subtasks
-  location     string   // Package location the task was registered from.
+  Section      string       // Section or namespace the task is to live under.
+  Label        string       // Label or name of the task.
+  Description  string       // Description of what the task does.
+  Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
+  Action       action       // Action function to run when task is executed.
+  dependencies manual       // Cached dependency graph.
+  manual       manual       // Subtasks.
+  location     string       // Package location the task was registered from.
 }
 
 type manual []*Task
+type dependencies []string
 
 type imprt struct {
   Path string
@@ -68,6 +72,11 @@ var loader = template.Must(template.New("loader").Parse(`
   package main
 
   import (
+    "fmt"
+    "os"
+
+    "github.com/chuckpreslar/gofer"
+
     // Imported task packages.
   {{range .Imports}}
     _ "{{.Path}}"
@@ -75,7 +84,10 @@ var loader = template.Must(template.New("loader").Parse(`
   )
 
   func main() {
-    // Template is executed to register tasks.
+    // Template is executed to register and preform tasks.
+    if err := gofer.Preform(os.Args[1]); nil != err {
+      fmt.Fprintf(os.Stderr, "%s\n", err)
+    }
   }
 `))
 
@@ -169,39 +181,23 @@ func Register(task Task) (err error) {
   return
 }
 
-// Preform attempts to run a Task's Action based
+// LoadAndPreform attempts to load tasks by executing
+// a generated main package and preforming a Task's Action based
 // on the definition.
+func LoadAndPreform(definition string) error {
+  return load(definition)
+}
+
+// Preform attempts to preform a Task already loaded.
 func Preform(definition string) (err error) {
-  if unloaded {
-    if err = load(); nil != err {
-      return
-    }
-
-    unloaded = false
-  }
-
   task := gofer.index(definition)
-
-  if nil == task {
-    return errUnknownTask
-  } else if nil == task.Action {
-    return errNoAction
-  }
-
-  for _, dependency := range task.Dependencies {
-    err = Preform(dependency)
-
-    if nil != err {
-      return
-    }
-  }
 
   return task.Action()
 }
 
 // load attempts to load all potential gofer tasks
 // found within the local GOPATH environment variable.
-func load() (err error) {
+func load(definition string) (err error) {
   if err = walk(); nil != err {
     return
   }
@@ -220,7 +216,7 @@ func load() (err error) {
     err = remove(dir)
   }()
 
-  command := exec.Command("go", []string{"run", dir}...)
+  command := exec.Command("go", []string{"run", dir, definition}...)
   stdout, err := command.StdoutPipe()
 
   if nil != err {
