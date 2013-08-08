@@ -6,13 +6,13 @@ __go·fer__ /ˈgō-fər/ _(n)_ - An employee who runs errands in addition to per
 
 ## About
 
-You see too many Go packages relying on rake.  Why should we force people to use something that's not native to the platform their developing for?  __gofer__ was made for just this reason.
+You see too many Go packages relying on rake.  Why should we force people to use something that's not native to the platform they're developing for?  __gofer__ was made for just this reason.
 
-As long as you place your task files within a `tasks` directory, and import the gofer package, users will have access to them from anywhere as long as the binary is installed along their `PATH` environment variable.
+As long as you place your task files within a `tasks` directory, and import the __gofer__ package, users will have access to them from anywhere as long as the binary is installed along their `PATH` environment variable.
 
 ## Usage
 
-The following is the most basic example.
+The following is the most basic example:
 
 ```go
 //  $GOPATH/
@@ -36,11 +36,11 @@ var TaskOne = gofer.Register(gofer.Task{
 })
 ```
 
-To access the task you created, simple execute the follow command from your terminal with the __gofer__ binary installed along your `PATH` environment variable.
+To access the task you created, simply execute the following command from your terminal:
 
     $ gofer task_one
 
-Yes, yes.. of course you can namespace (or sectionalize) your tasks.
+Yes, yes.. of course you can namespace (or sectionalize) your tasks:
 
 ```go
 var TaskOne = gofer.Register(gofer.Task{
@@ -57,7 +57,7 @@ var TaskOne = gofer.Register(gofer.Task{
 
 Don't worry about the chicken or the egg problem; if you somehow manage to create a nested task before its parent, __gofer__ simply carves out a blank space for you to come back and potentially fill in later.
 
-You can also give your tasks dependencies that will be evaluated in the appropriate order.
+You can also give your tasks dependencies that will be evaluated in the appropriate order:
 
 ```go
 var TaskTwo = gofer.Register(gofer.Task{
