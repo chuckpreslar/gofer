@@ -12,6 +12,12 @@ As long as you place your task files within a `tasks` directory, and import the 
 
 ## Installation
 
+Assuming `/user/local/bin` is on your path:
+
+    $ go get -u github.com/chuckpreslar/gofer
+    $ cd $GOPATH/src/github.com/chuckpreslar/gofer
+    $ go build ./bin/gofer.go && mv ./gofer /usr/local/bin/gofer
+
 ## Usage
 
 The following is the most basic example:
