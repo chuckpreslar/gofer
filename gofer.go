@@ -217,6 +217,10 @@ func LoadAndPreform(definition string) error {
 
 // Preform attempts to preform a Task already loaded.
 func Preform(definition string) (err error) {
+  if nil == gofer.index(definition) {
+    return errUnknownTask
+  }
+
   definitions, err := calculateDependencies(definition)
 
   if nil != err {

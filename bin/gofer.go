@@ -7,14 +7,14 @@ import (
   "os"
 )
 
-type command struct {
-  name        string
-  trigger     string
-  description string
-}
-
 func main() {
-  definition := os.Args[1]
+  var definition string
+
+  if 1 >= len(os.Args) {
+    definition = ""
+  } else {
+    definition = os.Args[1]
+  }
 
   if err := gofer.LoadAndPreform(definition); nil != err {
     fmt.Fprintf(os.Stderr, "%s\n", err)
