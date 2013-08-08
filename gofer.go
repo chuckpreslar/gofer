@@ -229,6 +229,11 @@ func Preform(definition string) (err error) {
 
   for _, definition = range definitions {
     task := gofer.index(definition)
+
+    if nil == task.Action {
+      return errNoAction
+    }
+
     if err = task.Action(); nil != err {
       return
     }
