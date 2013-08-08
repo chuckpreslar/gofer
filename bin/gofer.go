@@ -16,7 +16,7 @@ func main() {
     definition = os.Args[1]
   }
 
-  if err := gofer.LoadAndPreform(definition); nil != err {
+  if err := gofer.LoadAndPerform(definition); nil != err {
     fmt.Fprintf(os.Stderr, "%s\n", err)
   }
 }

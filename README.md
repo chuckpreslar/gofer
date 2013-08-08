@@ -29,9 +29,9 @@ import (
 
 var TaskOne = gofer.Register(gofer.Task{
   Label:       "task_one",
-  Description: "Preforms a simple task.",
+  Description: "Performs a simple task.",
   Action: func() error {
-    // Preform something when called.
+    // Perform something when called.
   },
 })
 ```
@@ -46,9 +46,9 @@ Yes, yes.. of course you can namespace (or sectionalize) your tasks.
 var TaskOne = gofer.Register(gofer.Task{
   Section:     "my_package:sub_section",
   Label:       "task_one",
-  Description: "Preforms a simple task.",
+  Description: "Performs a simple task.",
   Action: func() error {
-    // Preform something when called.
+    // Perform something when called.
   },
 })
 
@@ -64,9 +64,9 @@ var TaskTwo = gofer.Register(gofer.Task{
   Section:     "my_package",
   Label:       "task_two",
   Dependencies: []string{"my_package:task_two"},
-  Description: "Preforms a simple task after my_package:task_one executes.",
+  Description: "Performs a simple task after my_package:task_one executes.",
   Action: func() error {
-    // Preform something when called.
+    // Perform something when called.
   },
 })
 
