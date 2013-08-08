@@ -9,12 +9,12 @@ class Gofer < Formula
   version VERSION
 
   def install
-    unless ENV["GOPATH"].empty?
-      abort "To use gofer, you must first set your $GOPATH environment variable set."     
+    if ENV["GOPATH"].empty?
+      abort "Error: To use gofer, you must first set your $GOPATH environment variable set."     
     end
 
     unless system "go get -u github.com/chuckpreslar/gofer"
-      abort "Failed to install gofer package."
+      abort "Error: Failed to install gofer package."
     end
 
     bin.install "gofer"
