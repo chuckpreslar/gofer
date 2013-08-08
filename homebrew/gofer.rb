@@ -9,7 +9,7 @@ class Gofer < Formula
   version VERSION
 
   def install
-    unless system "echo $GOPATH"
+    unless ENV["GOPATH"].empty?
       abort "To use gofer, you must first set your $GOPATH environment variable set."     
     end
 
