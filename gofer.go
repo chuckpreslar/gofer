@@ -59,7 +59,6 @@ type templateData struct {
 
 var (
   gofer       = make(manual, 0)     // gofer variable used for storing tasks.
-  unloaded    = true                // have tasks been loaded?
   directories = make([]string, 0)   // potential task directories.
   data        = templateData{}      // data to be used in template.
   goPath      = os.Getenv("GOPATH") // local GOPATH environment variable.
@@ -84,7 +83,7 @@ var loader = template.Must(template.New("loader").Parse(`
 
   func main() {
     // Template is executed to register and preform tasks.
-    if err := gofer.Preform(os.Args[1]); nil != err {
+    if err := gofer.Perform(os.Args[1]); nil != err {
       fmt.Fprintf(os.Stderr, "%s\n", err)
     }
   }
@@ -208,15 +207,15 @@ func Register(task Task) (err error) {
   return
 }
 
-// LoadAndPreform attempts to load tasks by executing
+// LoadAndPerform attempts to load tasks by executing
 // a generated main package and preforming a Task's Action based
 // on the definition.
-func LoadAndPreform(definition string) error {
+func LoadAndPerform(definition string) error {
   return load(definition)
 }
 
-// Preform attempts to preform a Task already loaded.
-func Preform(definition string) (err error) {
+// Perform attempts to preform a Task already loaded.
+func Perform(definition string) (err error) {
   if nil == gofer.index(definition) {
     return errUnknownTask
   }
@@ -283,9 +282,6 @@ func load(definition string) (err error) {
   go io.Copy(os.Stdout, stdout)
   go io.Copy(os.Stderr, stderr)
 
-  // command.Run
-  // Run starts the specified command and waits for it to complete.
-  // this seems to be a lie...
   if err = command.Wait(); nil != err {
     return
   }

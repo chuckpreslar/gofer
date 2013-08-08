@@ -63,7 +63,7 @@ func TestRegister(t *testing.T) {
   }
 }
 
-func TestPreform(t *testing.T) {
+func TestPerform(t *testing.T) {
   unperformed := true
 
   task := Task{
@@ -76,16 +76,16 @@ func TestPreform(t *testing.T) {
   }
 
   Register(task)
-  err := Preform("one:two:five")
+  err := Perform("one:two:five")
 
   if nil != err {
     t.Error(err)
   } else if unperformed {
-    t.Error(`"unpreformed" flag was no flipped to false, call to Preform failed to run action.`)
+    t.Error(`"unpreformed" flag was no flipped to false, call to Perform failed to run action.`)
   }
 }
 
-func TestPreformWithDependencies(t *testing.T) {
+func TestPerformWithDependencies(t *testing.T) {
   unperformed := true
 
   dependency := Task{
@@ -108,12 +108,12 @@ func TestPreformWithDependencies(t *testing.T) {
   Register(dependency)
   Register(task)
 
-  err := Preform("one:two:seven")
+  err := Perform("one:two:seven")
 
   if nil != err {
     t.Error(err)
   } else if unperformed {
-    t.Error(`"unpreformed" flag was no flipped to false, call to Preform failed to run dependency action.`)
+    t.Error(`"unpreformed" flag was no flipped to false, call to Perform failed to run dependency action.`)
   }
 }
 
@@ -196,7 +196,7 @@ func TestDependencyOrdering(t *testing.T) {
   Register(d4)
   Register(d5)
 
-  if err := Preform("d:five"); nil != err {
+  if err := Perform("d:five"); nil != err {
     t.Errorf(`Unexpected error encounted, %s.`, err)
   }
 }
@@ -253,7 +253,7 @@ func TestCyclicDependencies(t *testing.T) {
   Register(d4)
   Register(d5)
 
-  if err := Preform("d:five"); errCyclicDependency != err {
+  if err := Perform("d:five"); errCyclicDependency != err {
     t.Errorf(`Unexpected error encounted, %s.`, err)
   }
 }
