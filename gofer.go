@@ -34,7 +34,7 @@ var (
   errCyclicDependency         = errors.New("Cyclic dependency detected.")
 )
 
-type action func(arguments ...interface{}) error
+type action func() error
 
 type Task struct {
   Section      string       // Section or namespace the task is to live under.

@@ -69,7 +69,7 @@ func TestPreform(t *testing.T) {
   task := Task{
     Section: "one:two",
     Label:   "five",
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       unperformed = false
       return nil
     },
@@ -91,7 +91,7 @@ func TestPreformWithDependencies(t *testing.T) {
   dependency := Task{
     Section: "one:two",
     Label:   "six",
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       unperformed = false
       return nil
     },
@@ -101,7 +101,7 @@ func TestPreformWithDependencies(t *testing.T) {
     Section:      "one:two",
     Label:        "seven",
     Dependencies: []string{"one:two:six"},
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       return nil
     },
   }
@@ -132,7 +132,7 @@ func TestDependencyOrdering(t *testing.T) {
   d1 := Task{
     Section: "d",
     Label:   "one",
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       executed = append(executed, 1)
       return nil
     },
@@ -142,7 +142,7 @@ func TestDependencyOrdering(t *testing.T) {
     Section:      "d",
     Label:        "two",
     Dependencies: []string{"d:one"},
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       if !check(1) {
         t.Error(`Expected "d:one" to have previously executed.`)
       }
@@ -155,7 +155,7 @@ func TestDependencyOrdering(t *testing.T) {
     Section:      "d",
     Label:        "three",
     Dependencies: []string{"d:one", "d:four"},
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       if !check(1) || !check(4) {
         t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
       }
@@ -168,7 +168,7 @@ func TestDependencyOrdering(t *testing.T) {
     Section:      "d",
     Label:        "four",
     Dependencies: []string{"d:one"},
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       if !check(1) {
         t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
       }
@@ -181,7 +181,7 @@ func TestDependencyOrdering(t *testing.T) {
     Section:      "d",
     Label:        "five",
     Dependencies: []string{"d:two", "d:three"},
-    Action: func(arguments ...interface{}) error {
+    Action: func() error {
       if !check(2) || !check(3) {
         t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
       }
@@ -197,6 +197,63 @@ func TestDependencyOrdering(t *testing.T) {
   Register(d5)
 
   if err := Preform("d:five"); nil != err {
+    t.Errorf(`Unexpected error encounted, %s.`, err)
+  }
+}
+
+func TestCyclicDependencies(t *testing.T) {
+  d1 := Task{
+    Section:      "d",
+    Label:        "one",
+    Dependencies: []string{"d:three"},
+    Action: func() error {
+      return nil
+    },
+  }
+
+  d2 := Task{
+    Section:      "d",
+    Label:        "two",
+    Dependencies: []string{"d:one"},
+    Action: func() error {
+      return nil
+    },
+  }
+
+  d3 := Task{
+    Section:      "d",
+    Label:        "three",
+    Dependencies: []string{"d:four"},
+    Action: func() error {
+      return nil
+    },
+  }
+
+  d4 := Task{
+    Section:      "d",
+    Label:        "four",
+    Dependencies: []string{"d:one"},
+    Action: func() error {
+      return nil
+    },
+  }
+
+  d5 := Task{
+    Section:      "d",
+    Label:        "five",
+    Dependencies: []string{"d:two", "d:three"},
+    Action: func() error {
+      return nil
+    },
+  }
+
+  Register(d1)
+  Register(d2)
+  Register(d3)
+  Register(d4)
+  Register(d5)
+
+  if err := Preform("d:five"); errCyclicDependency != err {
     t.Errorf(`Unexpected error encounted, %s.`, err)
   }
 }
