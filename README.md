@@ -10,6 +10,8 @@ You see too many Go packages relying on rake.  Why should we force people to use
 
 As long as you place your task files within a `tasks` directory, and import the gofer package, users will have access to them from anywhere as long as the binary is installed along their `PATH` environment variable.
 
+## Installation
+
 ## Usage
 
 The following is the most basic example.
@@ -77,7 +79,7 @@ More complex dependency mapping is also resolved as long as there are no cyclic 
 
 ## Note
 
-This is simply a proposal of how I feel a Go task manage should work.  If you feel you have a feature that should be added, please, open a pull request for discussion.
+This is simply a proposal of how I feel a Go task manage should work.  If you feel you have a feature that should be added or that code is sloppy in an area, please, open a pull request for discussion.
 
 ## Documentation
 
