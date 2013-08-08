@@ -7,7 +7,7 @@ import (
   "os"
 )
 
-const VERSION = "0.1.0"
+const VERSION = "0.0.3"
 
 func main() {
   var definition string
@@ -19,7 +19,7 @@ func main() {
   }
 
   if "version" == definition {
-    fmt.Fprintf(os.Stdout, "%s", VERSION)
+    fmt.Fprintf(os.Stdout, "%s\n", VERSION)
     os.Exit(0)
   }
 
