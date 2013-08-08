@@ -103,10 +103,13 @@ func (self dependencies) includes(definition string) bool {
   return false
 }
 
+// add appends to the `dependencies` slice the provided `definition`.
 func (self *dependencies) add(definition string) {
   *self = append(*self, definition)
 }
 
+// remove removes the `definition` from the `dependencies` slice if
+// it's found.
 func (self *dependencies) remove(definition string) {
   for index, dependency := range *self {
     if dependency == definition {
@@ -363,7 +366,7 @@ func isGoferTaskFile(file *ast.File) bool {
 }
 
 // calculateDependencies determines the running order of a task
-// and it's dependencies, returning an error if the dependencies
+// and its dependencies, returning an error if the dependencies
 // are cyclic or if a task couldn't be looked up..
 func calculateDependencies(definition string) (definitions dependencies, err error) {
   half := make(dependencies, 0)
@@ -379,7 +382,7 @@ func calculateDependencies(definition string) (definitions dependencies, err err
 }
 
 // visitDefinition helps calculateDependencies to resolve
-// running order of it's dependencies.
+// running order of its dependencies.
 func visitDefinition(definition string, half, marked *dependencies) (err error) {
   if half.includes(definition) {
     return errCyclicDependency
