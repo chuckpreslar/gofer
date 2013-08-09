@@ -71,7 +71,7 @@ You can also give your tasks dependencies that will be evaluated in the appropri
 var TaskTwo = gofer.Register(gofer.Task{
   Section:     "my_package",
   Label:       "task_two",
-  Dependencies: []string{"my_package:task_two"},
+  Dependencies: []string{"my_package:task_one"},
   Description: "Performs a simple task after my_package:task_one executes.",
   Action: func() error {
     // Perform something when called.
