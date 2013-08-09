@@ -16,7 +16,7 @@ Assuming `/usr/local/bin` is on your path:
 
     $ go get -u github.com/chuckpreslar/gofer
     $ cd $GOPATH/src/github.com/chuckpreslar/gofer
-    $ go build -o /usr/local/bin/gofer ./bin/gofer.go
+    $ go build -o /usr/local/bin/gofer ./gofer/gofer.go
 
 ## Usage
 
