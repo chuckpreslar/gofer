@@ -11,6 +11,7 @@ import (
   "os/exec"
   "path"
   "path/filepath"
+  "runtime"
   "strings"
   "text/template"
   "time"
@@ -42,7 +43,7 @@ type Task struct {
   Description  string       // Description of what the task does.
   Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
   Action       action       // Action function to run when task is executed.
-  manual       manual       // Subtasks.
+  manual       manual       // Subtasks
   location     string       // Package location the task was registered from.
 }
 
@@ -120,15 +121,15 @@ func (self *dependencies) remove(definition string) {
 // index searches through the manual, returning a task
 // found with the label and in the section (namepsace) defined
 // by the definition.
-func (self *manual) index(definition string) (task *Task) {
+func (self manual) index(definition string) (task *Task) {
   sections := strings.Split(definition, DELIMITER)
   entries := self
 
   for _, section := range sections {
-    for i := 0; i < len(*entries); i++ {
-      if (*entries)[i].Label == section {
-        task = (*entries)[i]
-        entries = &task.manual // adjust `entries` pointer for next iteration.
+    for i := 0; i < len(entries); i++ {
+      if entries[i].Label == section {
+        task = entries[i]
+        entries = task.manual // adjust `entries` pointer for next iteration.
         break
       }
     }
@@ -185,8 +186,10 @@ func Register(task Task) (err error) {
     return errBadLabel
   }
 
+  _, task.location, _, _ = runtime.Caller(1)
+
   if defined := gofer.index(strings.Join([]string{task.Section, task.Label}, DELIMITER)); nil != defined {
-    // FIXME: This action should be logged.
+    // FIXME: This action should be logged if defined.location !~ task.location.
     defined.rewrite(task)
 
     return
