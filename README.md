@@ -48,7 +48,7 @@ Yes, yes.. of course you can namespace (or sectionalize) your tasks:
 
 ```go
 var TaskOne = gofer.Register(gofer.Task{
-  Section:     "my_package:sub_section",
+  Namespace:   "my_package:sub_section",
   Label:       "task_one",
   Description: "Performs a simple task.",
   Action: func() error {
@@ -65,7 +65,7 @@ You can also give your tasks dependencies that will be evaluated in the appropri
 
 ```go
 var TaskTwo = gofer.Register(gofer.Task{
-  Section:     "my_package",
+  Namespace:   "my_package",
   Label:       "task_two",
   Dependencies: []string{"my_package:task_one"},
   Description: "Performs a simple task after my_package:task_one executes.",

@@ -38,7 +38,7 @@ var (
 type action func() error
 
 type Task struct {
-  Section      string       // Section or namespace the task is to live under.
+  Namespace    string       // Namespace or namespace the task is to live under.
   Label        string       // Label or name of the task.
   Description  string       // Description of what the task does.
   Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
@@ -163,7 +163,7 @@ func (self *manual) sectionalize(definition string) (task *Task) {
 
   for i := 1; i < len(sections); i++ {
     temp := new(Task)
-    temp.Section = strings.Join(sections[:i], DELIMITER)
+    temp.Namespace = strings.Join(sections[:i], DELIMITER)
     temp.Label = sections[i]
 
     task.manual = append(task.manual, temp)
@@ -189,17 +189,17 @@ func Register(task Task) (err error) {
 
   _, task.location, _, _ = runtime.Caller(1)
 
-  if defined := gofer.index(strings.Join([]string{task.Section, task.Label}, DELIMITER)); nil != defined {
+  if defined := gofer.index(strings.Join([]string{task.Namespace, task.Label}, DELIMITER)); nil != defined {
     // FIXME: This action should be logged if defined.location !~ task.location.
     defined.rewrite(task)
 
     return
   }
 
-  parent := gofer.sectionalize(task.Section)
+  parent := gofer.sectionalize(task.Namespace)
 
   if nil == parent {
-    if 0 != len(task.Section) {
+    if 0 != len(task.Namespace) {
       return errRegistrationFailure
     }
 
@@ -233,12 +233,10 @@ func Perform(definition string) (err error) {
   for _, definition = range definitions {
     task := gofer.index(definition)
 
-    if nil == task.Action {
-      return errNoAction
-    }
-
-    if err = task.Action(); nil != err {
-      return
+    if nil != task.Action {
+      if err = task.Action(); nil != err {
+        return
+      }
     }
   }
 

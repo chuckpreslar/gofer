@@ -13,7 +13,7 @@ func TestManualIndex(t *testing.T) {
   }
 }
 
-func TestManualSectionalize(t *testing.T) {
+func TestManualNamespacealize(t *testing.T) {
   manual := make(manual, 0)
   manual.sectionalize("one:two:three")
 
@@ -21,16 +21,16 @@ func TestManualSectionalize(t *testing.T) {
 
   if nil == task {
     t.Error(`Unable to find task created during call to sectionalize.`)
-  } else if "one:two" != task.Section || "three" != task.Label {
+  } else if "one:two" != task.Namespace || "three" != task.Label {
     t.Errorf(`Tasks was not created properly during call to sectionalize,`+
-      ` wanted "one:two" & "three", got "%s" & "%s".`, task.Section, task.Label)
+      ` wanted "one:two" & "three", got "%s" & "%s".`, task.Namespace, task.Label)
   }
 }
 
 func TestRegister(t *testing.T) {
   task := Task{
-    Section: "one:two",
-    Label:   "three",
+    Namespace: "one:two",
+    Label:     "three",
   }
 
   Register(task)
@@ -40,26 +40,26 @@ func TestRegister(t *testing.T) {
 
   if nil == stored || nil == parent {
     t.Error(`Register failed to create and store task.`)
-  } else if "one:two" != stored.Section || "three" != stored.Label {
-    t.Errorf(`Register failed to store task properly, expected Section to be "one:two"`+
-      ` & Label to be "three", got %s & %s.`, stored.Section, stored.Label)
-  } else if "one" != parent.Section || "two" != parent.Label {
-    t.Errorf(`Register failed to create parent properly, expected Section to be "one:two"`+
-      ` & Label to be "three", got %s & %s.`, parent.Section, parent.Label)
+  } else if "one:two" != stored.Namespace || "three" != stored.Label {
+    t.Errorf(`Register failed to store task properly, expected Namespace to be "one:two"`+
+      ` & Label to be "three", got %s & %s.`, stored.Namespace, stored.Label)
+  } else if "one" != parent.Namespace || "two" != parent.Label {
+    t.Errorf(`Register failed to create parent properly, expected Namespace to be "one:two"`+
+      ` & Label to be "three", got %s & %s.`, parent.Namespace, parent.Label)
   }
 
   other := Task{
-    Section: "one:two",
-    Label:   "four",
+    Namespace: "one:two",
+    Label:     "four",
   }
 
   Register(other)
   stored = gofer.index("one:two")
 
   if 1 != len(gofer) {
-    t.Error(`Register failed to associate parent Section properly.`)
+    t.Error(`Register failed to associate parent Namespace properly.`)
   } else if 2 != len(stored.manual) {
-    t.Error(`Register failed to associate parent Section properly.`)
+    t.Error(`Register failed to associate parent Namespace properly.`)
   }
 }
 
@@ -67,8 +67,8 @@ func TestPerform(t *testing.T) {
   unperformed := true
 
   task := Task{
-    Section: "one:two",
-    Label:   "five",
+    Namespace: "one:two",
+    Label:     "five",
     Action: func() error {
       unperformed = false
       return nil
@@ -89,8 +89,8 @@ func TestPerformWithDependencies(t *testing.T) {
   unperformed := true
 
   dependency := Task{
-    Section: "one:two",
-    Label:   "six",
+    Namespace: "one:two",
+    Label:     "six",
     Action: func() error {
       unperformed = false
       return nil
@@ -98,7 +98,7 @@ func TestPerformWithDependencies(t *testing.T) {
   }
 
   task := Task{
-    Section:      "one:two",
+    Namespace:    "one:two",
     Label:        "seven",
     Dependencies: []string{"one:two:six"},
     Action: func() error {
@@ -130,8 +130,8 @@ func TestDependencyOrdering(t *testing.T) {
   }
 
   d1 := Task{
-    Section: "d",
-    Label:   "one",
+    Namespace: "d",
+    Label:     "one",
     Action: func() error {
       executed = append(executed, 1)
       return nil
@@ -139,7 +139,7 @@ func TestDependencyOrdering(t *testing.T) {
   }
 
   d2 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "two",
     Dependencies: []string{"d:one"},
     Action: func() error {
@@ -152,7 +152,7 @@ func TestDependencyOrdering(t *testing.T) {
   }
 
   d3 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "three",
     Dependencies: []string{"d:one", "d:four"},
     Action: func() error {
@@ -165,7 +165,7 @@ func TestDependencyOrdering(t *testing.T) {
   }
 
   d4 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "four",
     Dependencies: []string{"d:one"},
     Action: func() error {
@@ -178,7 +178,7 @@ func TestDependencyOrdering(t *testing.T) {
   }
 
   d5 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "five",
     Dependencies: []string{"d:two", "d:three"},
     Action: func() error {
@@ -203,7 +203,7 @@ func TestDependencyOrdering(t *testing.T) {
 
 func TestCyclicDependencies(t *testing.T) {
   d1 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "one",
     Dependencies: []string{"d:three"},
     Action: func() error {
@@ -212,7 +212,7 @@ func TestCyclicDependencies(t *testing.T) {
   }
 
   d2 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "two",
     Dependencies: []string{"d:one"},
     Action: func() error {
@@ -221,7 +221,7 @@ func TestCyclicDependencies(t *testing.T) {
   }
 
   d3 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "three",
     Dependencies: []string{"d:four"},
     Action: func() error {
@@ -230,7 +230,7 @@ func TestCyclicDependencies(t *testing.T) {
   }
 
   d4 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "four",
     Dependencies: []string{"d:one"},
     Action: func() error {
@@ -239,7 +239,7 @@ func TestCyclicDependencies(t *testing.T) {
   }
 
   d5 := Task{
-    Section:      "d",
+    Namespace:    "d",
     Label:        "five",
     Dependencies: []string{"d:two", "d:three"},
     Action: func() error {
