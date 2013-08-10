@@ -54,14 +54,15 @@ type imprt struct {
   Path string
 }
 
-type templateData struct {
-  Imports []imprt
+var templateData struct {
+  Imports []struct {
+    Path string
+  }
 }
 
 var (
   gofer       = make(manual, 0)     // gofer variable used for storing tasks.
   directories = make([]string, 0)   // potential task directories.
-  data        = templateData{}      // data to be used in template.
   goPath      = os.Getenv("GOPATH") // local GOPATH environment variable.
 )
 
@@ -335,7 +336,7 @@ func parsePackages(packages map[string]*ast.Package, dir string) {
 
     if isGoferTaskFile(file) {
       imprtPath := strings.TrimLeft(strings.Replace(dir, goPath, "", 1), SOURCE_PREFIX)
-      data.Imports = append(data.Imports, imprt{imprtPath})
+      templateData.Imports = append(templateData.Imports, imprt{imprtPath})
     }
   }
 }
@@ -350,7 +351,7 @@ func write(destination string) (err error) {
   }
 
   defer file.Close()
-  err = loader.Execute(file, data)
+  err = loader.Execute(file, templateData)
 
   return
 }
