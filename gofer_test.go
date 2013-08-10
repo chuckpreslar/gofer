@@ -13,7 +13,7 @@ func TestManualIndex(t *testing.T) {
   }
 }
 
-func TestManualNamespacealize(t *testing.T) {
+func TestManualSectionalize(t *testing.T) {
   manual := make(manual, 0)
   manual.sectionalize("one:two:three")
 

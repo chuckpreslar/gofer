@@ -178,7 +178,12 @@ func (self *manual) sectionalize(definition string) (task *Task) {
 func (self *Task) rewrite(task Task) {
   self.Description = task.Description
   self.Action = task.Action
-  self.Dependencies = task.Dependencies
+
+  if 0 == len(self.location) || self.location == task.location {
+    self.Dependencies = append(self.Dependencies, task.Dependencies...)
+  } else {
+    self.Dependencies = task.Dependencies
+  }
 }
 
 // Register accepts a `Task`, storing it for later.
