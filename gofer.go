@@ -25,17 +25,78 @@ const (
   TEMPLATE_DESTINATION = "gofer_task_definitions_%v.go"
 )
 
-var (
-  errBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
-  errRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
-  errUnknownTask              = errors.New("Unable to look up task.")
-  errNoAction                 = errors.New("No action defined for task.")
-  errUnsetGoPath              = errors.New("Environment variable for GOPATH could not be found.")
-  errUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
-  errCyclicDependency         = errors.New("Cyclic dependency detected.")
+type MessageType uint8
+
+const (
+  FAILURE MessageType = iota
+  WARNING
+  SUCCESS
+  MESSAGE
 )
 
-type action func() error
+var (
+  ErrBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
+  ErrRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
+  ErrUnknownTask              = errors.New("Unable to look up task.")
+  ErrNoAction                 = errors.New("No action defined for task.")
+  ErrUnsetGoPath              = errors.New("Environment variable for GOPATH could not be found.")
+  ErrUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
+  ErrCyclicDependency         = errors.New("Cyclic dependency detected.")
+)
+
+func PrintError(message interface{}, writer ...io.Writer) {
+  var destination io.Writer
+  if 0 < len(writer) {
+    destination = writer[0]
+  } else {
+    destination = os.Stderr
+  }
+
+  Print(message, FAILURE, destination)
+}
+
+func PrintWarning(message interface{}, writer ...io.Writer) {
+  var destination io.Writer
+
+  if 0 < len(writer) {
+    destination = writer[0]
+  } else {
+    destination = os.Stdout
+  }
+
+  Print(message, WARNING, destination)
+}
+
+func PrintSuccess(message interface{}, writer ...io.Writer) {
+  var destination io.Writer
+
+  if 0 < len(writer) {
+    destination = writer[0]
+  } else {
+    destination = os.Stdout
+  }
+
+  Print(message, SUCCESS, destination)
+}
+
+func Print(message interface{}, typ MessageType, destination io.Writer) {
+  var status string
+
+  switch typ {
+  case FAILURE:
+    status = "\033[31mfailure\033[0m"
+  case WARNING:
+    status = "\033[33mwarning\033[0m"
+  case SUCCESS:
+    status = "\033[32msuccess\033[0m"
+  default:
+    status = "\033[36mmessage\033[0m"
+  }
+
+  fmt.Fprintf(destination, "    [ %s ] %v\n", status, message)
+}
+
+type action func(...string) error
 
 type Task struct {
   Namespace    string       // Namespace or namespace the task is to live under.
@@ -72,11 +133,14 @@ var loader = template.Must(template.New("loader").Parse(`
   package main
 
   import (
-    "fmt"
     "os"
-
+  )
+  
+  import(
     "github.com/chuckpreslar/gofer"
-
+  )
+  
+  import(
     // Imported task packages.
   {{range .Imports}}
     _ "{{.Path}}"
@@ -85,8 +149,8 @@ var loader = template.Must(template.New("loader").Parse(`
 
   func main() {
     // Template is executed to register and preform tasks.
-    if err := gofer.Perform(os.Args[1]); nil != err {
-      fmt.Fprintf(os.Stderr, "%s\n", err)
+    if err := gofer.Perform(os.Args[1], os.Args[2:]...); nil != err {
+      gofer.PrintError(err, os.Stderr)
     }
   }
 `))
@@ -189,7 +253,7 @@ func (self *Task) rewrite(task Task) {
 // Register accepts a `Task`, storing it for later.
 func Register(task Task) (err error) {
   if index := strings.Index(task.Label, DELIMITER); -1 != index {
-    return errBadLabel
+    return ErrBadLabel
   }
 
   _, task.location, _, _ = runtime.Caller(1)
@@ -205,7 +269,7 @@ func Register(task Task) (err error) {
 
   if nil == parent {
     if 0 != len(task.Namespace) {
-      return errRegistrationFailure
+      return ErrRegistrationFailure
     }
 
     gofer = append(gofer, &task)
@@ -219,14 +283,14 @@ func Register(task Task) (err error) {
 // LoadAndPerform attempts to load tasks by executing
 // a generated main package and preforming a Task's Action based
 // on the definition.
-func LoadAndPerform(definition string) error {
-  return load(definition)
+func LoadAndPerform(definition string, arguments ...string) error {
+  return load(definition, arguments...)
 }
 
 // Perform attempts to preform a Task already loaded.
-func Perform(definition string) (err error) {
+func Perform(definition string, arguments ...string) (err error) {
   if nil == gofer.index(definition) {
-    return errUnknownTask
+    return ErrUnknownTask
   }
 
   definitions, err := calculateDependencies(definition)
@@ -239,8 +303,10 @@ func Perform(definition string) (err error) {
     task := gofer.index(definition)
 
     if nil != task.Action {
-      if err = task.Action(); nil != err {
+      if err = task.Action(arguments...); nil != err {
         return
+      } else {
+        PrintSuccess(fmt.Sprintf("Successfully executed `%s` in namespace `%s`.", task.Label, task.Namespace), os.Stdout)
       }
     }
   }
@@ -250,7 +316,7 @@ func Perform(definition string) (err error) {
 
 // load attempts to load all potential gofer tasks
 // found within the local GOPATH environment variable.
-func load(definition string) (err error) {
+func load(definition string, arguments ...string) (err error) {
   if err = walk(); nil != err {
     return
   }
@@ -269,7 +335,7 @@ func load(definition string) (err error) {
     err = remove(dir)
   }()
 
-  command := exec.Command("go", []string{"run", dir, definition}...)
+  command := exec.Command("go", append([]string{"run", dir, definition}, arguments...)...)
   stdout, err := command.StdoutPipe()
 
   if nil != err {
@@ -300,7 +366,7 @@ func load(definition string) (err error) {
 // directories with the `PACKAGE_NAME` of "tasks"
 func walk() (err error) {
   if 0 == len(goPath) {
-    return errUnsetGoPath
+    return ErrUnsetGoPath
   }
 
   err = filepath.Walk(goPath, func(path string, info os.FileInfo, err error) error {
@@ -397,13 +463,13 @@ func calculateDependencies(definition string) (definitions dependencies, err err
 // running order of its dependencies.
 func visitDefinition(definition string, half, marked *dependencies) (err error) {
   if half.includes(definition) {
-    return errCyclicDependency
+    return ErrCyclicDependency
   } else if !marked.includes(definition) && !half.includes(definition) {
     half.add(definition)
     task := gofer.index(definition)
 
     if nil == task {
-      return errUnresolvableDependencies
+      return ErrUnresolvableDependencies
     }
 
     for _, dependency := range task.Dependencies {

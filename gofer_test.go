@@ -69,7 +69,7 @@ func TestPerform(t *testing.T) {
   task := Task{
     Namespace: "one:two",
     Label:     "five",
-    Action: func() error {
+    Action: func(arguments ...string) error {
       unperformed = false
       return nil
     },
@@ -91,7 +91,7 @@ func TestPerformWithDependencies(t *testing.T) {
   dependency := Task{
     Namespace: "one:two",
     Label:     "six",
-    Action: func() error {
+    Action: func(arguments ...string) error {
       unperformed = false
       return nil
     },
@@ -101,7 +101,7 @@ func TestPerformWithDependencies(t *testing.T) {
     Namespace:    "one:two",
     Label:        "seven",
     Dependencies: []string{"one:two:six"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       return nil
     },
   }
@@ -132,7 +132,7 @@ func TestDependencyOrdering(t *testing.T) {
   d1 := Task{
     Namespace: "d",
     Label:     "one",
-    Action: func() error {
+    Action: func(arguments ...string) error {
       executed = append(executed, 1)
       return nil
     },
@@ -142,7 +142,7 @@ func TestDependencyOrdering(t *testing.T) {
     Namespace:    "d",
     Label:        "two",
     Dependencies: []string{"d:one"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       if !check(1) {
         t.Error(`Expected "d:one" to have previously executed.`)
       }
@@ -155,7 +155,7 @@ func TestDependencyOrdering(t *testing.T) {
     Namespace:    "d",
     Label:        "three",
     Dependencies: []string{"d:one", "d:four"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       if !check(1) || !check(4) {
         t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
       }
@@ -168,7 +168,7 @@ func TestDependencyOrdering(t *testing.T) {
     Namespace:    "d",
     Label:        "four",
     Dependencies: []string{"d:one"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       if !check(1) {
         t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
       }
@@ -181,7 +181,7 @@ func TestDependencyOrdering(t *testing.T) {
     Namespace:    "d",
     Label:        "five",
     Dependencies: []string{"d:two", "d:three"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       if !check(2) || !check(3) {
         t.Error(`Expected "d:one" and "d:four" to have previously executed.`)
       }
@@ -206,7 +206,7 @@ func TestCyclicDependencies(t *testing.T) {
     Namespace:    "d",
     Label:        "one",
     Dependencies: []string{"d:three"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       return nil
     },
   }
@@ -215,7 +215,7 @@ func TestCyclicDependencies(t *testing.T) {
     Namespace:    "d",
     Label:        "two",
     Dependencies: []string{"d:one"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       return nil
     },
   }
@@ -224,7 +224,7 @@ func TestCyclicDependencies(t *testing.T) {
     Namespace:    "d",
     Label:        "three",
     Dependencies: []string{"d:four"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       return nil
     },
   }
@@ -233,7 +233,7 @@ func TestCyclicDependencies(t *testing.T) {
     Namespace:    "d",
     Label:        "four",
     Dependencies: []string{"d:one"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       return nil
     },
   }
@@ -242,7 +242,7 @@ func TestCyclicDependencies(t *testing.T) {
     Namespace:    "d",
     Label:        "five",
     Dependencies: []string{"d:two", "d:three"},
-    Action: func() error {
+    Action: func(arguments ...string) error {
       return nil
     },
   }
@@ -253,7 +253,7 @@ func TestCyclicDependencies(t *testing.T) {
   Register(d4)
   Register(d5)
 
-  if err := Perform("d:five"); errCyclicDependency != err {
+  if err := Perform("d:five"); ErrCyclicDependency != err {
     t.Errorf(`Unexpected error encounted, %s.`, err)
   }
 }

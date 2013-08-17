@@ -23,7 +23,13 @@ func main() {
     os.Exit(0)
   }
 
-  if err := gofer.LoadAndPerform(definition); nil != err {
+  var arguments []string
+
+  if 1 < len(os.Args) {
+    arguments = os.Args[2:]
+  }
+
+  if err := gofer.LoadAndPerform(definition, arguments...); nil != err {
     fmt.Fprintf(os.Stderr, "%s\n", err)
   }
 }
