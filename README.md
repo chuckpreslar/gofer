@@ -34,7 +34,7 @@ import (
 var TaskOne = gofer.Register(gofer.Task{
   Label:       "task_one",
   Description: "Performs a simple task.",
-  Action: func() error {
+  Action: func(arguments ...string) error {
     // Perform something when called.
   },
 })
@@ -51,7 +51,7 @@ var TaskOne = gofer.Register(gofer.Task{
   Namespace:   "my_package:sub_section",
   Label:       "task_one",
   Description: "Performs a simple task.",
-  Action: func() error {
+  Action: func(arguments ...string) error {
     // Perform something when called.
   },
 })
@@ -69,7 +69,7 @@ var TaskTwo = gofer.Register(gofer.Task{
   Label:       "task_two",
   Dependencies: []string{"my_package:task_one"},
   Description: "Performs a simple task after my_package:task_one executes.",
-  Action: func() error {
+  Action: func(arguments ...string) error {
     // Perform something when called.
   },
 })
