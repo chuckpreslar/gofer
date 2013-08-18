@@ -306,7 +306,7 @@ func Perform(definition string, arguments ...string) (err error) {
       if err = task.Action(arguments...); nil != err {
         return
       } else {
-        PrintSuccess(fmt.Sprintf("Successfully executed `%s` in namespace `%s`.", task.Label, task.Namespace), os.Stdout)
+        PrintSuccess(fmt.Sprintf("Successfully executed task `%s` in namespace `%s`.", task.Label, task.Namespace), os.Stdout)
       }
     }
   }
