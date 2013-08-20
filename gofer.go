@@ -1,3 +1,4 @@
+// Package gofer implements a task manager.
 package gofer
 
 import (
