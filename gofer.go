@@ -26,15 +26,6 @@ const (
   TEMPLATE_DESTINATION = "gofer_task_definitions_%v.go"
 )
 
-type MessageType uint8
-
-const (
-  FAILURE MessageType = iota
-  WARNING
-  SUCCESS
-  MESSAGE
-)
-
 var (
   ErrBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
   ErrRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
@@ -44,58 +35,6 @@ var (
   ErrUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
   ErrCyclicDependency         = errors.New("Cyclic dependency detected.")
 )
-
-func PrintError(message interface{}, writer ...io.Writer) {
-  var destination io.Writer
-  if 0 < len(writer) {
-    destination = writer[0]
-  } else {
-    destination = os.Stderr
-  }
-
-  Print(message, FAILURE, destination)
-}
-
-func PrintWarning(message interface{}, writer ...io.Writer) {
-  var destination io.Writer
-
-  if 0 < len(writer) {
-    destination = writer[0]
-  } else {
-    destination = os.Stdout
-  }
-
-  Print(message, WARNING, destination)
-}
-
-func PrintSuccess(message interface{}, writer ...io.Writer) {
-  var destination io.Writer
-
-  if 0 < len(writer) {
-    destination = writer[0]
-  } else {
-    destination = os.Stdout
-  }
-
-  Print(message, SUCCESS, destination)
-}
-
-func Print(message interface{}, typ MessageType, destination io.Writer) {
-  var status string
-
-  switch typ {
-  case FAILURE:
-    status = "\033[31mfailure\033[0m"
-  case WARNING:
-    status = "\033[33mwarning\033[0m"
-  case SUCCESS:
-    status = "\033[32msuccess\033[0m"
-  default:
-    status = "\033[36mmessage\033[0m"
-  }
-
-  fmt.Fprintf(destination, "    [ %s ] %v\n", status, message)
-}
 
 type action func(...string) error
 
@@ -133,16 +72,18 @@ var loader = template.Must(template.New("loader").Parse(`
   // copyright (c) Chuck Preslar, 2013
   package main
 
+  // Imported standard lib packages.
   import (
     "os"
   )
   
+  // Import the gofer package.
   import(
     "github.com/chuckpreslar/gofer"
   )
   
+  // Imported task packages.
   import(
-    // Imported task packages.
   {{range .Imports}}
     _ "{{.Path}}"
   {{end}}
@@ -150,9 +91,7 @@ var loader = template.Must(template.New("loader").Parse(`
 
   func main() {
     // Template is executed to register and preform tasks.
-    if err := gofer.Perform(os.Args[1], os.Args[2:]...); nil != err {
-      gofer.PrintError(err, os.Stderr)
-    }
+    gofer.Perform(os.Args[1], os.Args[2:]...)
   }
 `))
 
@@ -305,9 +244,10 @@ func Perform(definition string, arguments ...string) (err error) {
 
     if nil != task.Action {
       if err = task.Action(arguments...); nil != err {
+        // Failed to execute task or dependency.
         return
       } else {
-        PrintSuccess(fmt.Sprintf("Successfully executed task `%s` in namespace `%s`.", task.Label, task.Namespace), os.Stdout)
+        // Executes successfully.
       }
     }
   }

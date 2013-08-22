@@ -1,10 +1,12 @@
 package main
 
 import (
-  "github.com/chuckpreslar/gofer"
-
   "fmt"
   "os"
+)
+
+import (
+  "github.com/chuckpreslar/gofer"
 )
 
 const VERSION = "0.0.3"
@@ -29,7 +31,5 @@ func main() {
     arguments = os.Args[2:]
   }
 
-  if err := gofer.LoadAndPerform(definition, arguments...); nil != err {
-    fmt.Fprintf(os.Stderr, "%s\n", err)
-  }
+  gofer.LoadAndPerform(definition, arguments...)
 }
