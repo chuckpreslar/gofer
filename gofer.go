@@ -95,6 +95,14 @@ var loader = template.Must(template.New("loader").Parse(`
   }
 `))
 
+func printFailureNotice(err error) {
+  fmt.Fprintf(os.Stderr, "[ \033[31m\u2717\033[0m ] %v\n", err)
+}
+
+func printSuccessNotice(msg string) {
+  fmt.Fprintf(os.Stderr, "[ \033[32m\u2713\033[0m ] %v\n", msg)
+}
+
 // includes is a helper to reduce duplicated code, checking
 // to see if `dependencies` string slice contains the provided
 // definition.
@@ -193,6 +201,7 @@ func (self *Task) rewrite(task Task) {
 // Register accepts a `Task`, storing it for later.
 func Register(task Task) (err error) {
   if index := strings.Index(task.Label, DELIMITER); -1 != index {
+    printFailureNotice(ErrBadLabel)
     return ErrBadLabel
   }
 
@@ -223,19 +232,27 @@ func Register(task Task) (err error) {
 // LoadAndPerform attempts to load tasks by executing
 // a generated main package and preforming a Task's Action based
 // on the definition.
-func LoadAndPerform(definition string, arguments ...string) error {
-  return load(definition, arguments...)
+func LoadAndPerform(definition string, arguments ...string) (err error) {
+  err = load(definition, arguments...)
+
+  if nil != err {
+    printFailureNotice(err)
+  }
+
+  return err
 }
 
 // Perform attempts to preform a Task already loaded.
 func Perform(definition string, arguments ...string) (err error) {
   if nil == gofer.index(definition) {
+    printFailureNotice(ErrUnknownTask)
     return ErrUnknownTask
   }
 
   definitions, err := calculateDependencies(definition)
 
   if nil != err {
+    printFailureNotice(err)
     return
   }
 
@@ -245,8 +262,11 @@ func Perform(definition string, arguments ...string) (err error) {
     if nil != task.Action {
       if err = task.Action(arguments...); nil != err {
         // Failed to execute task or dependency.
+        printFailureNotice(errors.New(fmt.Sprintf("Task %v failed to executed", definition)))
+        printFailureNotice(errors.New(fmt.Sprintf("Error: %v", err)))
         return
       } else {
+        printSuccessNotice(fmt.Sprintf("Successfully preformed task %v", definition))
         // Executes successfully.
       }
     }
