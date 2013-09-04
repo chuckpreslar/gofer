@@ -262,12 +262,11 @@ func Perform(definition string, arguments ...string) (err error) {
     if nil != task.Action {
       if err = task.Action(arguments...); nil != err {
         // Failed to execute task or dependency.
-        printFailureNotice(errors.New(fmt.Sprintf("Task %v failed to executed", definition)))
-        printFailureNotice(errors.New(fmt.Sprintf("Error: %v", err)))
+        printFailureNotice(errors.New(fmt.Sprintf("Task `%v` failed to executed - %v", definition, err)))
         return
       } else {
-        printSuccessNotice(fmt.Sprintf("Successfully preformed task %v", definition))
-        // Executes successfully.
+        // Executed successfully.
+        printSuccessNotice(fmt.Sprintf("Successfully preformed task `%v`", definition))
       }
     }
   }
@@ -314,6 +313,8 @@ func load(definition string, arguments ...string) (err error) {
   }
 
   go io.Copy(os.Stdout, stdout)
+  // FIXME: Copy os.Stderr to internal error handler in order to
+  // provide more accurate/formatted failure notice.
   go io.Copy(os.Stderr, stderr)
 
   if err = command.Wait(); nil != err {
