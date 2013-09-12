@@ -79,10 +79,6 @@ var TaskTwo = gofer.Register(gofer.Task{
 
 More complex dependency mapping is also resolved as long as there are no cyclic dependencies.
 
-## Note
-
-This is simply a proposal of how I feel a Go task manage should work.  If you feel you have a feature that should be added or that code is sloppy in an area, please, open a pull request for discussion.
-
 ## Documentation
 
 View godoc or visit [godoc.org](http://godoc.org/github.com/chuckpreslar/gofer).
