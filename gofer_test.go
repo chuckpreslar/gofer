@@ -253,7 +253,7 @@ func TestCyclicDependencies(t *testing.T) {
   Register(d4)
   Register(d5)
 
-  if err := Perform("d:five"); ErrCyclicDependency != err {
+  if err := Perform("d:five"); errCyclicDependency != err {
     t.Errorf(`Unexpected error encounted, %s.`, err)
   }
 }

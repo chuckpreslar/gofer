@@ -19,28 +19,28 @@ import (
 )
 
 const (
-  DELIMITER            = ":"
-  SOURCE_PREFIX        = "/src/"
-  PACKAGE_NAME         = "tasks"
-  EXPECTED_IMPORT      = "gofer"
-  TEMPLATE_DESTINATION = "gofer_task_definitions_%v.go"
+  Delimiter           = ":"
+  SourcePrefix        = "/src/"
+  PackageName         = "tasks"
+  ExpectedImport      = "gofer"
+  TemplateDestination = "gofer_task_definitions_%v.go"
 )
 
 var (
-  ErrBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
-  ErrRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
-  ErrUnknownTask              = errors.New("Unable to look up task.")
-  ErrNoAction                 = errors.New("No action defined for task.")
-  ErrUnsetGoPath              = errors.New("Environment variable for GOPATH could not be found.")
-  ErrUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
-  ErrCyclicDependency         = errors.New("Cyclic dependency detected.")
+  errBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
+  errRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
+  errUnknownTask              = errors.New("Unable to look up task.")
+  errNoAction                 = errors.New("No action defined for task.")
+  errUnsetGoPath              = errors.New("Environment variable for GOPATH could not be found.")
+  errUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
+  errCyclicDependency         = errors.New("Cyclic dependency detected.")
 )
 
 type action func(...string) error
 
 type Task struct {
-  Namespace    string       // Namespace or namespace the task is to live under.
-  Label        string       // Label or name of the task.
+  Namespace    string       // Namespace the task is to live under.
+  Label        string       // Label or name of the task which it will be access by under the namespace.
   Description  string       // Description of what the task does.
   Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
   Action       action       // Action function to run when task is executed.
@@ -135,7 +135,7 @@ func (self *dependencies) remove(definition string) {
 // found with the label and in the section (namepsace) defined
 // by the definition.
 func (self manual) index(definition string) (task *Task) {
-  sections := strings.Split(definition, DELIMITER)
+  sections := strings.Split(definition, Delimiter)
   entries := self
 
   for _, section := range sections {
@@ -166,7 +166,7 @@ func (self *manual) sectionalize(definition string) (task *Task) {
     return
   }
 
-  sections := strings.Split(definition, DELIMITER)
+  sections := strings.Split(definition, Delimiter)
 
   task = new(Task)
   task.Label = sections[0]
@@ -175,7 +175,7 @@ func (self *manual) sectionalize(definition string) (task *Task) {
 
   for i := 1; i < len(sections); i++ {
     temp := new(Task)
-    temp.Namespace = strings.Join(sections[:i], DELIMITER)
+    temp.Namespace = strings.Join(sections[:i], Delimiter)
     temp.Label = sections[i]
 
     task.manual = append(task.manual, temp)
@@ -200,14 +200,14 @@ func (self *Task) rewrite(task Task) {
 
 // Register accepts a `Task`, storing it for later.
 func Register(task Task) (err error) {
-  if index := strings.Index(task.Label, DELIMITER); -1 != index {
-    printFailureNotice(ErrBadLabel)
-    return ErrBadLabel
+  if index := strings.Index(task.Label, Delimiter); -1 != index {
+    printFailureNotice(errBadLabel)
+    return errBadLabel
   }
 
   _, task.location, _, _ = runtime.Caller(1)
 
-  if defined := gofer.index(strings.Join([]string{task.Namespace, task.Label}, DELIMITER)); nil != defined {
+  if defined := gofer.index(strings.Join([]string{task.Namespace, task.Label}, Delimiter)); nil != defined {
     // FIXME: This action should be logged if defined.location !~ task.location.
     defined.rewrite(task)
 
@@ -218,7 +218,7 @@ func Register(task Task) (err error) {
 
   if nil == parent {
     if 0 != len(task.Namespace) {
-      return ErrRegistrationFailure
+      return errRegistrationFailure
     }
 
     gofer = append(gofer, &task)
@@ -245,8 +245,8 @@ func LoadAndPerform(definition string, arguments ...string) (err error) {
 // Perform attempts to preform a Task already loaded.
 func Perform(definition string, arguments ...string) (err error) {
   if nil == gofer.index(definition) {
-    printFailureNotice(ErrUnknownTask)
-    return ErrUnknownTask
+    printFailureNotice(errUnknownTask)
+    return errUnknownTask
   }
 
   definitions, err := calculateDependencies(definition)
@@ -285,7 +285,7 @@ func load(definition string, arguments ...string) (err error) {
     return
   }
 
-  dir := path.Join(os.TempDir(), fmt.Sprintf(TEMPLATE_DESTINATION, time.Now().Unix()))
+  dir := path.Join(os.TempDir(), fmt.Sprintf(TemplateDestination, time.Now().Unix()))
 
   if err = write(dir); nil != err {
     return
@@ -325,14 +325,14 @@ func load(definition string, arguments ...string) (err error) {
 }
 
 // walk walks the local GOPATH environment variable, looking for
-// directories with the `PACKAGE_NAME` of "tasks"
+// directories with the `PackageName` of "tasks"
 func walk() (err error) {
   if 0 == len(goPath) {
-    return ErrUnsetGoPath
+    return errUnsetGoPath
   }
 
   err = filepath.Walk(goPath, func(path string, info os.FileInfo, err error) error {
-    if info.IsDir() && strings.HasSuffix(path, PACKAGE_NAME) {
+    if info.IsDir() && strings.HasSuffix(path, PackageName) {
       directories = append(directories, path)
     }
 
@@ -366,7 +366,7 @@ func parsePackages(packages map[string]*ast.Package, dir string) {
     file := ast.MergePackageFiles(pkg, ast.FilterImportDuplicates)
 
     if isGoferTaskFile(file) {
-      imprtPath := strings.TrimLeft(strings.Replace(dir, goPath, "", 1), SOURCE_PREFIX)
+      imprtPath := strings.TrimLeft(strings.Replace(dir, goPath, "", 1), SourcePrefix)
       templateData.Imports = append(templateData.Imports, imprt{imprtPath})
     }
   }
@@ -397,7 +397,7 @@ func remove(destination string) (err error) {
 // file belongs to a package `tasks` and imports the gofer package.
 func isGoferTaskFile(file *ast.File) bool {
   for _, imprt := range file.Imports {
-    if PACKAGE_NAME == file.Name.String() && strings.ContainsAny(imprt.Path.Value, EXPECTED_IMPORT) {
+    if PackageName == file.Name.String() && strings.ContainsAny(imprt.Path.Value, ExpectedImport) {
       return true
     }
   }
@@ -409,12 +409,9 @@ func isGoferTaskFile(file *ast.File) bool {
 // and its dependencies, returning an error if the dependencies
 // are cyclic or if a task couldn't be looked up..
 func calculateDependencies(definition string) (definitions dependencies, err error) {
-  half := make(dependencies, 0)
-  marked := make(dependencies, 0)
+  var half, marked dependencies
 
-  err = visitDefinition(definition, &half, &marked)
-
-  if nil == err {
+  if err = visitDefinition(definition, &half, &marked); nil == err {
     definitions = marked
   }
 
@@ -425,13 +422,13 @@ func calculateDependencies(definition string) (definitions dependencies, err err
 // running order of its dependencies.
 func visitDefinition(definition string, half, marked *dependencies) (err error) {
   if half.includes(definition) {
-    return ErrCyclicDependency
+    return errCyclicDependency
   } else if !marked.includes(definition) && !half.includes(definition) {
     half.add(definition)
     task := gofer.index(definition)
 
     if nil == task {
-      return ErrUnresolvableDependencies
+      return errUnresolvableDependencies
     }
 
     for _, dependency := range task.Dependencies {
