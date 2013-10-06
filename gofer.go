@@ -2,69 +2,69 @@
 package gofer
 
 import (
-  "errors"
-  "fmt"
-  "go/ast"
-  "go/parser"
-  "go/token"
-  "io"
-  "os"
-  "os/exec"
-  "path"
-  "path/filepath"
-  "runtime"
-  "strings"
-  "text/template"
-  "time"
+	"errors"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"text/template"
+	"time"
 )
 
 const (
-  Delimiter           = ":"
-  SourcePrefix        = "/src/"
-  PackageName         = "tasks"
-  ExpectedImport      = "gofer"
-  TemplateDestination = "gofer_task_definitions_%v.go"
+	Delimiter           = ":"
+	SourcePrefix        = "/src/"
+	PackageName         = "tasks"
+	ExpectedImport      = "gofer"
+	TemplateDestination = "gofer_task_definitions_%v.go"
 )
 
 var (
-  errBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
-  errRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
-  errUnknownTask              = errors.New("Unable to look up task.")
-  errNoAction                 = errors.New("No action defined for task.")
-  errUnsetGoPath              = errors.New("Environment variable for GOPATH could not be found.")
-  errUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
-  errCyclicDependency         = errors.New("Cyclic dependency detected.")
+	errBadLabel                 = errors.New("Bad label for task, unexpected section delimiter.")
+	errRegistrationFailure      = errors.New("Registration for task failed unexpectedly.")
+	errUnknownTask              = errors.New("Unable to look up task.")
+	errNoAction                 = errors.New("No action defined for task.")
+	errUnsetGoPath              = errors.New("Environment variable for GOPATH could not be found.")
+	errUnresolvableDependencies = errors.New("Unable to resolve dependencies.")
+	errCyclicDependency         = errors.New("Cyclic dependency detected.")
 )
 
 type action func(...string) error
 
 type Task struct {
-  Namespace    string       // Namespace the task is to live under.
-  Label        string       // Label or name of the task which it will be access by under the namespace.
-  Description  string       // Description of what the task does.
-  Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
-  Action       action       // Action function to run when task is executed.
-  manual       manual       // Subtasks
-  location     string       // Package location the task was registered from.
+	Namespace    string       // Namespace the task is to live under.
+	Label        string       // Label or name of the task which it will be access by under the namespace.
+	Description  string       // Description of what the task does.
+	Dependencies dependencies // Dependencies of the task, or definitions of other tasks to preform
+	Action       action       // Action function to run when task is executed.
+	manual       manual       // Subtasks
+	location     string       // Package location the task was registered from.
 }
 
 type manual []*Task
 type dependencies []string
 
 type imprt struct {
-  Path string
+	Path string
 }
 
 var templateData struct {
-  Imports []struct {
-    Path string
-  }
+	Imports []struct {
+		Path string
+	}
 }
 
 var (
-  gofer       = make(manual, 0)     // gofer variable used for storing tasks.
-  directories = make([]string, 0)   // potential task directories.
-  goPath      = os.Getenv("GOPATH") // local GOPATH environment variable.
+	gofer       = make(manual, 0)     // gofer variable used for storing tasks.
+	directories = make([]string, 0)   // potential task directories.
+	goPath      = os.Getenv("GOPATH") // local GOPATH environment variable.
 )
 
 var loader = template.Must(template.New("loader").Parse(`
@@ -96,351 +96,351 @@ var loader = template.Must(template.New("loader").Parse(`
 `))
 
 func printFailureNotice(err error) {
-  fmt.Fprintf(os.Stderr, "[ \033[31m\u2717\033[0m ] %v\n", err)
+	fmt.Fprintf(os.Stderr, "[ \033[31m\u2717\033[0m ] %v\n", err)
 }
 
 func printSuccessNotice(msg string) {
-  fmt.Fprintf(os.Stderr, "[ \033[32m\u2713\033[0m ] %v\n", msg)
+	fmt.Fprintf(os.Stderr, "[ \033[32m\u2713\033[0m ] %v\n", msg)
 }
 
 // includes is a helper to reduce duplicated code, checking
 // to see if `dependencies` string slice contains the provided
 // definition.
 func (self dependencies) includes(definition string) bool {
-  for _, dependency := range self {
-    if dependency == definition {
-      return true
-    }
-  }
+	for _, dependency := range self {
+		if dependency == definition {
+			return true
+		}
+	}
 
-  return false
+	return false
 }
 
 // add appends to the `dependencies` slice the provided `definition`.
 func (self *dependencies) add(definition string) {
-  *self = append(*self, definition)
+	*self = append(*self, definition)
 }
 
 // remove removes the `definition` from the `dependencies` slice if
 // it's found.
 func (self *dependencies) remove(definition string) {
-  for index, dependency := range *self {
-    if dependency == definition {
-      (*self) = append((*self)[:index], (*self)[index+1:]...)
-    }
-  }
+	for index, dependency := range *self {
+		if dependency == definition {
+			(*self) = append((*self)[:index], (*self)[index+1:]...)
+		}
+	}
 }
 
 // index searches through the manual, returning a task
 // found with the label and in the section (namepsace) defined
 // by the definition.
 func (self manual) index(definition string) (task *Task) {
-  sections := strings.Split(definition, Delimiter)
-  entries := self
+	sections := strings.Split(definition, Delimiter)
+	entries := self
 
-  for _, section := range sections {
-    for i := 0; i < len(entries); i++ {
-      if entries[i].Label == section {
-        task = entries[i]
-        entries = task.manual // adjust `entries` pointer for next iteration.
-        break
-      }
-    }
+	for _, section := range sections {
+		for i := 0; i < len(entries); i++ {
+			if entries[i].Label == section {
+				task = entries[i]
+				entries = task.manual // adjust `entries` pointer for next iteration.
+				break
+			}
+		}
 
-    if nil == task {
-      return
-    } else if section != task.Label {
-      return nil
-    }
-  }
+		if nil == task {
+			return
+		} else if section != task.Label {
+			return nil
+		}
+	}
 
-  return
+	return
 }
 
 // sectionalize creates potential missing spaces in a manual
 // based on the `definition`.
 func (self *manual) sectionalize(definition string) (task *Task) {
-  task = self.index(definition)
+	task = self.index(definition)
 
-  if nil != task {
-    return
-  }
+	if nil != task {
+		return
+	}
 
-  sections := strings.Split(definition, Delimiter)
+	sections := strings.Split(definition, Delimiter)
 
-  task = new(Task)
-  task.Label = sections[0]
+	task = new(Task)
+	task.Label = sections[0]
 
-  *self = append(*self, task)
+	*self = append(*self, task)
 
-  for i := 1; i < len(sections); i++ {
-    temp := new(Task)
-    temp.Namespace = strings.Join(sections[:i], Delimiter)
-    temp.Label = sections[i]
+	for i := 1; i < len(sections); i++ {
+		temp := new(Task)
+		temp.Namespace = strings.Join(sections[:i], Delimiter)
+		temp.Label = sections[i]
 
-    task.manual = append(task.manual, temp)
-    task = temp // update task to temp for next iteration.
-  }
+		task.manual = append(task.manual, temp)
+		task = temp // update task to temp for next iteration.
+	}
 
-  return
+	return
 }
 
 // rewrite copys values for Actions, Dependencies, and Description
 // from one task to another.
 func (self *Task) rewrite(task Task) {
-  self.Description = task.Description
-  self.Action = task.Action
+	self.Description = task.Description
+	self.Action = task.Action
 
-  if 0 == len(self.location) || self.location == task.location {
-    self.Dependencies = append(self.Dependencies, task.Dependencies...)
-  } else {
-    self.Dependencies = task.Dependencies
-  }
+	if 0 == len(self.location) || self.location == task.location {
+		self.Dependencies = append(self.Dependencies, task.Dependencies...)
+	} else {
+		self.Dependencies = task.Dependencies
+	}
 }
 
 // Register accepts a `Task`, storing it for later.
 func Register(task Task) (err error) {
-  if index := strings.Index(task.Label, Delimiter); -1 != index {
-    printFailureNotice(errBadLabel)
-    return errBadLabel
-  }
+	if index := strings.Index(task.Label, Delimiter); -1 != index {
+		printFailureNotice(errBadLabel)
+		return errBadLabel
+	}
 
-  _, task.location, _, _ = runtime.Caller(1)
+	_, task.location, _, _ = runtime.Caller(1)
 
-  if defined := gofer.index(strings.Join([]string{task.Namespace, task.Label}, Delimiter)); nil != defined {
-    // FIXME: This action should be logged if defined.location !~ task.location.
-    defined.rewrite(task)
+	if defined := gofer.index(strings.Join([]string{task.Namespace, task.Label}, Delimiter)); nil != defined {
+		// FIXME: This action should be logged if defined.location !~ task.location.
+		defined.rewrite(task)
 
-    return
-  }
+		return
+	}
 
-  parent := gofer.sectionalize(task.Namespace)
+	parent := gofer.sectionalize(task.Namespace)
 
-  if nil == parent {
-    if 0 != len(task.Namespace) {
-      return errRegistrationFailure
-    }
+	if nil == parent {
+		if 0 != len(task.Namespace) {
+			return errRegistrationFailure
+		}
 
-    gofer = append(gofer, &task)
-  } else {
-    parent.manual = append(parent.manual, &task)
-  }
+		gofer = append(gofer, &task)
+	} else {
+		parent.manual = append(parent.manual, &task)
+	}
 
-  return
+	return
 }
 
 // LoadAndPerform attempts to load tasks by executing
 // a generated main package and preforming a Task's Action based
 // on the definition.
 func LoadAndPerform(definition string, arguments ...string) (err error) {
-  err = load(definition, arguments...)
+	err = load(definition, arguments...)
 
-  if nil != err {
-    printFailureNotice(err)
-  }
+	if nil != err {
+		printFailureNotice(err)
+	}
 
-  return err
+	return err
 }
 
 // Perform attempts to preform a Task already loaded.
 func Perform(definition string, arguments ...string) (err error) {
-  if nil == gofer.index(definition) {
-    printFailureNotice(errUnknownTask)
-    return errUnknownTask
-  }
+	if nil == gofer.index(definition) {
+		printFailureNotice(errUnknownTask)
+		return errUnknownTask
+	}
 
-  definitions, err := calculateDependencies(definition)
+	definitions, err := calculateDependencies(definition)
 
-  if nil != err {
-    printFailureNotice(err)
-    return
-  }
+	if nil != err {
+		printFailureNotice(err)
+		return
+	}
 
-  for _, definition = range definitions {
-    task := gofer.index(definition)
+	for _, definition = range definitions {
+		task := gofer.index(definition)
 
-    if nil != task.Action {
-      if err = task.Action(arguments...); nil != err {
-        // Failed to execute task or dependency.
-        printFailureNotice(errors.New(fmt.Sprintf("Task `%v` failed to executed - %v", definition, err)))
-        return
-      } else {
-        // Executed successfully.
-        printSuccessNotice(fmt.Sprintf("Successfully preformed task `%v`", definition))
-      }
-    }
-  }
+		if nil != task.Action {
+			if err = task.Action(arguments...); nil != err {
+				// Failed to execute task or dependency.
+				printFailureNotice(errors.New(fmt.Sprintf("Task `%v` failed to executed - %v", definition, err)))
+				return
+			} else {
+				// Executed successfully.
+				printSuccessNotice(fmt.Sprintf("Successfully preformed task `%v`", definition))
+			}
+		}
+	}
 
-  return
+	return
 }
 
 // load attempts to load all potential gofer tasks
 // found within the local GOPATH environment variable.
 func load(definition string, arguments ...string) (err error) {
-  if err = walk(); nil != err {
-    return
-  }
+	if err = walk(); nil != err {
+		return
+	}
 
-  if err = parse(); nil != err {
-    return
-  }
+	if err = parse(); nil != err {
+		return
+	}
 
-  dir := path.Join(os.TempDir(), fmt.Sprintf(TemplateDestination, time.Now().Unix()))
+	dir := path.Join(os.TempDir(), fmt.Sprintf(TemplateDestination, time.Now().Unix()))
 
-  if err = write(dir); nil != err {
-    return
-  }
+	if err = write(dir); nil != err {
+		return
+	}
 
-  defer func() {
-    err = remove(dir)
-  }()
+	defer func() {
+		err = remove(dir)
+	}()
 
-  command := exec.Command("go", append([]string{"run", dir, definition}, arguments...)...)
-  stdout, err := command.StdoutPipe()
+	command := exec.Command("go", append([]string{"run", dir, definition}, arguments...)...)
+	stdout, err := command.StdoutPipe()
 
-  if nil != err {
-    return err
-  }
+	if nil != err {
+		return err
+	}
 
-  stderr, err := command.StderrPipe()
+	stderr, err := command.StderrPipe()
 
-  if nil != err {
-    return err
-  }
+	if nil != err {
+		return err
+	}
 
-  if err = command.Start(); nil != err {
-    return
-  }
+	if err = command.Start(); nil != err {
+		return
+	}
 
-  go io.Copy(os.Stdout, stdout)
-  // FIXME: Copy os.Stderr to internal error handler in order to
-  // provide more accurate/formatted failure notice.
-  go io.Copy(os.Stderr, stderr)
+	go io.Copy(os.Stdout, stdout)
+	// FIXME: Copy os.Stderr to internal error handler in order to
+	// provide more accurate/formatted failure notice.
+	go io.Copy(os.Stderr, stderr)
 
-  if err = command.Wait(); nil != err {
-    return
-  }
+	if err = command.Wait(); nil != err {
+		return
+	}
 
-  return
+	return
 }
 
 // walk walks the local GOPATH environment variable, looking for
 // directories with the `PackageName` of "tasks"
 func walk() (err error) {
-  if 0 == len(goPath) {
-    return errUnsetGoPath
-  }
+	if 0 == len(goPath) {
+		return errUnsetGoPath
+	}
 
-  err = filepath.Walk(goPath, func(path string, info os.FileInfo, err error) error {
-    if info.IsDir() && strings.HasSuffix(path, PackageName) {
-      directories = append(directories, path)
-    }
+	err = filepath.Walk(goPath, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() && strings.HasSuffix(path, PackageName) {
+			directories = append(directories, path)
+		}
 
-    return err
-  })
+		return err
+	})
 
-  return
+	return
 }
 
 // parse attempts to load each "tasks" directory found within
 // the local GOPATH environment variable into the Go parser.
 func parse() (err error) {
-  for _, dir := range directories {
-    fset := token.NewFileSet()
-    packages, err := parser.ParseDir(fset, dir, nil, parser.AllErrors)
+	for _, dir := range directories {
+		fset := token.NewFileSet()
+		packages, err := parser.ParseDir(fset, dir, nil, parser.AllErrors)
 
-    if nil != err {
-      return err
-    }
+		if nil != err {
+			return err
+		}
 
-    parsePackages(packages, dir)
-  }
+		parsePackages(packages, dir)
+	}
 
-  return nil
+	return nil
 }
 
 // parsePackages inspects Go AST packages to ensure the files
 // are intended to register Tasks with or use the gofer package.
 func parsePackages(packages map[string]*ast.Package, dir string) {
-  for _, pkg := range packages {
-    file := ast.MergePackageFiles(pkg, ast.FilterImportDuplicates)
+	for _, pkg := range packages {
+		file := ast.MergePackageFiles(pkg, ast.FilterImportDuplicates)
 
-    if isGoferTaskFile(file) {
-      imprtPath := strings.TrimLeft(strings.Replace(dir, goPath, "", 1), SourcePrefix)
-      templateData.Imports = append(templateData.Imports, imprt{imprtPath})
-    }
-  }
+		if isGoferTaskFile(file) {
+			imprtPath := strings.TrimLeft(strings.Replace(dir, goPath, "", 1), SourcePrefix)
+			templateData.Imports = append(templateData.Imports, imprt{imprtPath})
+		}
+	}
 }
 
 // write attempts to write the `loader` template to a file at the
 // given `destination`.
 func write(destination string) (err error) {
-  file, err := os.Create(destination)
+	file, err := os.Create(destination)
 
-  if nil != err {
-    return
-  }
+	if nil != err {
+		return
+	}
 
-  defer file.Close()
-  err = loader.Execute(file, templateData)
+	defer file.Close()
+	err = loader.Execute(file, templateData)
 
-  return
+	return
 }
 
 // remove attempts to remove a file at the given `destination`.
 func remove(destination string) (err error) {
-  err = os.Remove(destination)
-  return
+	err = os.Remove(destination)
+	return
 }
 
 // isGoferTaskFile checks an AST file's imports to make sure the
 // file belongs to a package `tasks` and imports the gofer package.
 func isGoferTaskFile(file *ast.File) bool {
-  for _, imprt := range file.Imports {
-    if PackageName == file.Name.String() && strings.ContainsAny(imprt.Path.Value, ExpectedImport) {
-      return true
-    }
-  }
+	for _, imprt := range file.Imports {
+		if PackageName == file.Name.String() && strings.ContainsAny(imprt.Path.Value, ExpectedImport) {
+			return true
+		}
+	}
 
-  return false
+	return false
 }
 
 // calculateDependencies determines the running order of a task
 // and its dependencies, returning an error if the dependencies
 // are cyclic or if a task couldn't be looked up..
 func calculateDependencies(definition string) (definitions dependencies, err error) {
-  var half, marked dependencies
+	var half, marked dependencies
 
-  if err = visitDefinition(definition, &half, &marked); nil == err {
-    definitions = marked
-  }
+	if err = visitDefinition(definition, &half, &marked); nil == err {
+		definitions = marked
+	}
 
-  return
+	return
 }
 
 // visitDefinition helps calculateDependencies to resolve
 // running order of its dependencies.
 func visitDefinition(definition string, half, marked *dependencies) (err error) {
-  if half.includes(definition) {
-    return errCyclicDependency
-  } else if !marked.includes(definition) && !half.includes(definition) {
-    half.add(definition)
-    task := gofer.index(definition)
+	if half.includes(definition) {
+		return errCyclicDependency
+	} else if !marked.includes(definition) && !half.includes(definition) {
+		half.add(definition)
+		task := gofer.index(definition)
 
-    if nil == task {
-      return errUnresolvableDependencies
-    }
+		if nil == task {
+			return errUnresolvableDependencies
+		}
 
-    for _, dependency := range task.Dependencies {
-      err = visitDefinition(dependency, half, marked)
-      if nil != err {
-        return
-      }
-    }
+		for _, dependency := range task.Dependencies {
+			err = visitDefinition(dependency, half, marked)
+			if nil != err {
+				return
+			}
+		}
 
-    half.remove(definition)
-    marked.add(definition)
-  }
+		half.remove(definition)
+		marked.add(definition)
+	}
 
-  return
+	return
 }
