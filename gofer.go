@@ -24,6 +24,7 @@ const (
 	PackageName         = "tasks"
 	ExpectedImport      = "gofer"
 	TemplateDestination = "gofer_task_definitions_%v.go"
+	GoExt               = ".go"
 )
 
 var (
@@ -347,7 +348,9 @@ func walk() (err error) {
 func parse() (err error) {
 	for _, dir := range directories {
 		fset := token.NewFileSet()
-		packages, err := parser.ParseDir(fset, dir, nil, parser.AllErrors)
+		packages, err := parser.ParseDir(fset, dir, func(info os.FileInfo) bool {
+			return GoExt == filepath.Ext(info.Name())
+		}, parser.AllErrors)
 
 		if nil != err {
 			return err

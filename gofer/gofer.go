@@ -9,7 +9,7 @@ import (
 	"github.com/chuckpreslar/gofer"
 )
 
-const VERSION = "0.0.3"
+const VERSION = "0.0.4"
 
 func main() {
 	var definition string
