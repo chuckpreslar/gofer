@@ -63,9 +63,9 @@ var templateData struct {
 }
 
 var (
-	gofer       = make(manual, 0)     // gofer variable used for storing tasks.
-	directories = make([]string, 0)   // potential task directories.
-	goPath      = os.Getenv("GOPATH") // local GOPATH environment variable.
+	gofer       = make(manual, 0)                              // gofer variable used for storing tasks.
+	directories = make([]string, 0)                            // potential task directories.
+	goPath      = strings.TrimSuffix(os.Getenv("GOPATH"), "/") // local GOPATH environment variable.
 )
 
 var loader = template.Must(template.New("loader").Parse(`
