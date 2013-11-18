@@ -215,13 +215,16 @@ func Register(task Task) (err error) {
 		return
 	}
 
-	parent := gofer.sectionalize(task.Namespace)
+	var parent *Task
+
+	if 0 != len(task.Namespace) {
+		parent = gofer.sectionalize(task.Namespace)
+	}
 
 	if nil == parent {
 		if 0 != len(task.Namespace) {
 			return errRegistrationFailure
 		}
-
 		gofer = append(gofer, &task)
 	} else {
 		parent.manual = append(parent.manual, &task)

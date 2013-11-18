@@ -81,7 +81,34 @@ func TestPerform(t *testing.T) {
 	if nil != err {
 		t.Error(err)
 	} else if unperformed {
-		t.Error(`"unpreformed" flag was no flipped to false, call to Perform failed to run action.`)
+		t.Error(`"unperformed" flag was not flipped to false, call to Perform failed to run action.`)
+	}
+}
+
+func TestNoNamespace(t *testing.T) {
+	unperformed := true
+
+	task := Task{
+		Label: "label",
+		Action: func(arguments ...string) error {
+			unperformed = false
+			return nil
+		},
+	}
+
+	err := Register(task)
+
+	if nil != err {
+		t.Error(err)
+		return
+	}
+
+	err = Perform("label")
+
+	if nil != err {
+		t.Error(err)
+	} else if unperformed {
+		t.Error(`"unperformed" flag was not flipped to false, call to Perform failed to run action.`)
 	}
 }
 
@@ -113,7 +140,7 @@ func TestPerformWithDependencies(t *testing.T) {
 	if nil != err {
 		t.Error(err)
 	} else if unperformed {
-		t.Error(`"unpreformed" flag was no flipped to false, call to Perform failed to run dependency action.`)
+		t.Error(`"unperformed" flag was not flipped to false, call to Perform failed to run dependency action.`)
 	}
 }
 
