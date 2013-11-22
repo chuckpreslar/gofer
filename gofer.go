@@ -63,9 +63,9 @@ var templateData struct {
 }
 
 var (
-	gofer       = make(manual, 0)     // gofer variable used for storing tasks.
-	directories = make([]string, 0)   // potential task directories.
-	goPath      = os.Getenv("GOPATH") // local GOPATH environment variable.
+	gofer       = make(manual, 0)                              // gofer variable used for storing tasks.
+	directories = make([]string, 0)                            // potential task directories.
+	goPath      = strings.TrimSuffix(os.Getenv("GOPATH"), "/") // local GOPATH environment variable.
 )
 
 var loader = template.Must(template.New("loader").Parse(`
@@ -77,12 +77,12 @@ var loader = template.Must(template.New("loader").Parse(`
   import (
     "os"
   )
-  
+
   // Import the gofer package.
   import(
     "github.com/chuckpreslar/gofer"
   )
-  
+
   // Imported task packages.
   import(
   {{range .Imports}}
@@ -372,7 +372,7 @@ func parsePackages(packages map[string]*ast.Package, dir string) {
 		file := ast.MergePackageFiles(pkg, ast.FilterImportDuplicates)
 
 		if isGoferTaskFile(file) {
-			imprtPath := strings.TrimLeft(strings.Replace(dir, goPath, "", 1), SourcePrefix)
+			imprtPath := strings.TrimPrefix(strings.Replace(dir, goPath, "", 1), SourcePrefix)
 			templateData.Imports = append(templateData.Imports, imprt{imprtPath})
 		}
 	}
